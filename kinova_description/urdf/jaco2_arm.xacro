@@ -24,9 +24,12 @@
   <property name="link_4" value="jaco2_link_4" />
   <property name="link_5" value="jaco2_link_5" />
   <property name="link_hand" value="jaco2_link_hand" />
-  <property name="link_finger_1" value="jaco2_link_finger_1" />
-  <property name="link_finger_2" value="jaco2_link_finger_2" />
-  <property name="link_finger_3" value="jaco2_link_finger_3" />
+  <property name="link_finger_1" value="finger_proximal_limb_1" />
+  <property name="link_finger_2" value="finger_proximal_limb_2" />
+  <property name="link_finger_3" value="finger_proximal_limb_3" />
+  <property name="link_finger_tip_1" value="finger_distal_limb_1" />
+  <property name="link_finger_tip_2" value="finger_distal_limb_2" />
+  <property name="link_finger_tip_3" value="finger_distal_limb_3" />
 
   <property name="api_offset" value="0.028" />
   <property name="api_origin" value="jaco2_api_origin" />
@@ -64,14 +67,14 @@
   <property name="joint_4_lower_limit" value="${-2*J_PI}" />
   <property name="joint_4_upper_limit" value="${2*J_PI}" />
 
-  <property name="joint_5" value="jaco_joint_5" />
+  <property name="joint_5" value="jaco2_joint_5" />
   <property name="joint_5_axis_xyz" value="0 0 -1" />
   <property name="joint_5_origin_xyz" value="0.03700 0 -0.06408" />
   <property name="joint_5_origin_rpy" value="0 -${J_PI/180*60} 0" />
   <property name="joint_5_lower_limit" value="${-2*J_PI}" />
   <property name="joint_5_upper_limit" value="${2*J_PI}" />
 
-  <property name="joint_6" value="jaco_joint_6" />
+  <property name="joint_6" value="jaco2_joint_6" />
   <property name="joint_6_axis_xyz" value="0 0 -1" />
   <property name="joint_6_origin_xyz" value="0.03700 0 -0.06408" />
   <property name="joint_6_origin_rpy" value="-${J_PI/180*60} 0 ${J_PI/2}" />
@@ -85,6 +88,17 @@
   <property name="joint_finger_1_lower_limit" value="0" />
   <property name="joint_finger_1_upper_limit" value="${J_PI/180*40}" />
 
+  <property name="joint_finger_tip_1" value="jaco2_joint_finger_tip_1" />
+  <property name="joint_finger_tip_1_axis_xyz" value="0 0 1" />
+  <property name="joint_finger_tip_1_origin_xyz" value="0.035 -0.02595 -0.0025" />
+  <property name="joint_finger_tip_1_origin_rpy" value="0 0 0" />
+  <property name="joint_finger_tip_1_lower_limit" value="0" />
+  <property name="joint_finger_tip_1_upper_limit" value="${J_PI/180*40}" />
+  <property name="joint_finger_tip_1_mimic_joint" value="${J_PI/180*40}" />
+  <property name="joint_finger_tip_1_mimic_multiplier" value="0.0" />
+  <property name="joint_finger_tip_1_mimc_offset" value="0.0" />
+
+
   <property name="joint_finger_2" value="jaco2_joint_finger_2" />
   <property name="joint_finger_2_axis_xyz" value="0 0 1" />
   <property name="joint_finger_2_origin_xyz" value="0.03569 -0.0216 -0.10071" />
@@ -92,12 +106,33 @@
   <property name="joint_finger_2_lower_limit" value="0" />
   <property name="joint_finger_2_upper_limit" value="${J_PI/180*40}" />
 
+  <property name="joint_finger_tip_2" value="jaco2_joint_finger_tip_2" />
+  <property name="joint_finger_tip_2_axis_xyz" value="0 0 1" />
+  <property name="joint_finger_tip_2_origin_xyz" value="0.035 -0.02595 -0.0025" />
+  <property name="joint_finger_tip_2_origin_rpy" value="0 0 0" />
+  <property name="joint_finger_tip_2_lower_limit" value="0" />
+  <property name="joint_finger_tip_2_upper_limit" value="${J_PI/180*40}" />
+  <property name="joint_finger_tip_2_mimic_joint" value="${J_PI/180*40}" />
+  <property name="joint_finger_tip_2_mimic_multiplier" value="0.0" />
+  <property name="joint_finger_tip_2_mimc_offset" value="0.0" />
+
+
   <property name="joint_finger_3" value="jaco2_joint_finger_3" />
   <property name="joint_finger_3_axis_xyz" value="0 0 1" />
   <property name="joint_finger_3_origin_xyz" value="0.03569 0.0216 -0.10071" />
   <property name="joint_finger_3_origin_rpy" value="-1.5161 1.1459 0.23978" />
   <property name="joint_finger_3_lower_limit" value="0" />
   <property name="joint_finger_3_upper_limit" value="${J_PI/180*40}" />
+
+  <property name="joint_finger_tip_3" value="jaco3_joint_finger_tip_3" />
+  <property name="joint_finger_tip_3_axis_xyz" value="0 0 1" />
+  <property name="joint_finger_tip_3_origin_xyz" value="0.035 -0.02595 -0.0025" />
+  <property name="joint_finger_tip_3_origin_rpy" value="0 0 0" />
+  <property name="joint_finger_tip_3_lower_limit" value="0" />
+  <property name="joint_finger_tip_3_upper_limit" value="${J_PI/180*40}" />
+  <property name="joint_finger_tip_3_mimic_joint" value="${J_PI/180*40}" />
+  <property name="joint_finger_tip_3_mimic_multiplier" value="0.0" />
+  <property name="joint_finger_tip_3_mimc_offset" value="0.0" />
 
   <property name="link_end_effector"   value="jaco2_end_effector" />
   <property name="end_effector_offset" value="0.1687" />
