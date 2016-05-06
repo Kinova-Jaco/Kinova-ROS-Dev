@@ -24,12 +24,12 @@
   <property name="link_4" value="jaco2_link_4" />
   <property name="link_5" value="jaco2_link_5" />
   <property name="link_hand" value="jaco2_link_hand" />
-  <property name="link_finger_1" value="finger_proximal_limb_1" />
-  <property name="link_finger_2" value="finger_proximal_limb_2" />
-  <property name="link_finger_3" value="finger_proximal_limb_3" />
-  <property name="link_finger_tip_1" value="finger_distal_limb_1" />
-  <property name="link_finger_tip_2" value="finger_distal_limb_2" />
-  <property name="link_finger_tip_3" value="finger_distal_limb_3" />
+  <property name="link_finger_1" value="jaco2_link_finger_1" />
+  <property name="link_finger_2" value="jaco2_link_finger_2" />
+  <property name="link_finger_3" value="jaco2_link_finger_3" />
+  <property name="link_finger_tip_1" value="jaco2_link_finger_tip_1" />
+  <property name="link_finger_tip_2" value="jaco2_link_finger_tip_2" />
+  <property name="link_finger_tip_3" value="jaco2_link_finger_tip_3" />
 
   <property name="api_offset" value="0.028" />
   <property name="api_origin" value="jaco2_api_origin" />
