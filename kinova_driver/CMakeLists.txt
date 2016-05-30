@@ -12,6 +12,9 @@ find_package(catkin REQUIRED dynamic_reconfigure COMPONENTS
   std_msgs
   tf
 )
+
+find_package(orocos_kdl REQUIRED)
+
 generate_dynamic_reconfigure_options(
   #cfg/KinovaPositionConfig.cfg
 )
@@ -32,6 +35,7 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${orocos_kdl_INCLUDE_DIRS}
 )
 
 #Testers
@@ -78,7 +82,9 @@ add_dependencies(kinova_arm_driver ${catkin_EXPORTED_TARGETS})
 add_dependencies(kinova_tf_updater ${catkin_EXPORTED_TARGETS})
 
 target_link_libraries(kinova_arm_driver ${catkin_LIBRARIES} dl)
-target_link_libraries(kinova_tf_updater ${catkin_LIBRARIES})
+target_link_libraries(kinova_tf_updater ${catkin_LIBRARIES} ${orocos_kdl_LIBRARIES})
+
+# orocos_library(ocra-kdl-model src/OcraKDLModel/OcraKDLModel.cpp)
 
 #############
 ## Install ##

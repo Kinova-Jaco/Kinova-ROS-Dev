@@ -10,6 +10,16 @@
 #include <string>
 
 
+#include <kdl/chain.hpp>
+#include <kdl/chainfksolver.hpp>
+#include <kdl/chainfksolverpos_recursive.hpp>
+#include <kdl/frames_io.hpp>
+#include <stdio.h>
+#include <iostream>
+
+using namespace KDL;
+
+
 namespace kinova
 {
 
@@ -36,6 +46,7 @@ KinovaKinematics::KinovaKinematics(const ros::NodeHandle &node_handle)
     node_handle.param<double>("j6_to_end", j6_to_end_, 0.1687);
     node_handle.param<double>("j5_bend_degrees", j5_bend_degrees_, -55.0);
     node_handle.param<double>("j6_bend_degrees", j6_bend_degrees_, 55.0);
+    KinovaKinematics::try_KDL();
 }
 
 
@@ -345,6 +356,46 @@ void KinovaKinematics::updateForward(float q1, float q2, float q3, float q4, flo
     broadcaster_.sendTransform(tf::StampedTransform(transform, ros::Time::now(),
                                                     concatTfName(tf_prefix_, "link_hand"),
                                                     concatTfName(tf_prefix_, "link_finger_3")));
+}
+
+void KinovaKinematics::try_KDL()
+{
+    //Definition of a kinematic chain & add segments to the chain
+    KDL::Chain chain;
+    chain.addSegment(Segment(Joint(Joint::RotZ),Frame(Vector(0.0,0.0,1.020))));
+    chain.addSegment(Segment(Joint(Joint::RotX),Frame(Vector(0.0,0.0,0.480))));
+    chain.addSegment(Segment(Joint(Joint::RotX),Frame(Vector(0.0,0.0,0.645))));
+    chain.addSegment(Segment(Joint(Joint::RotZ)));
+    chain.addSegment(Segment(Joint(Joint::RotX),Frame(Vector(0.0,0.0,0.120))));
+    chain.addSegment(Segment(Joint(Joint::RotZ)));
+
+    // Create solver based on kinematic chain
+    ChainFkSolverPos_recursive fksolver = ChainFkSolverPos_recursive(chain);
+
+    // Create joint array
+    unsigned int nj = chain.getNrOfJoints();
+    KDL::JntArray jointpositions = JntArray(nj);
+
+    // Assign some values to the joint positions
+    for(unsigned int i=0;i<nj;i++){
+        float myinput;
+        printf ("Enter the position of joint %i: ",i);
+        scanf ("%e",&myinput);
+        jointpositions(i)=(double)myinput;
+    }
+
+    // Create the frame that will contain the results
+    KDL::Frame cartpos;
+
+    // Calculate forward position kinematics
+    bool kinematics_status;
+    kinematics_status = fksolver.JntToCart(jointpositions,cartpos);
+    if(kinematics_status>=0){
+        std::cout << cartpos <<std::endl;
+        printf("%s \n","Succes, thanks KDL!");
+    }else{
+        printf("%s \n","Error: could not calculate forward kinematics :(");
+    }
 }
 
 }  // namespace kinova

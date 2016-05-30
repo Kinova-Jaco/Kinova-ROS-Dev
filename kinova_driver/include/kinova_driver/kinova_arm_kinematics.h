@@ -39,7 +39,7 @@ class KinovaKinematics
     explicit KinovaKinematics(const ros::NodeHandle& node_handle);
 
     void updateForward(float q1, float q2, float q3, float q4, float q5, float q6);
-
+    void try_KDL();
     inline float degToRad(float degrees)
     {
         return (degrees * (M_PI / 180));
