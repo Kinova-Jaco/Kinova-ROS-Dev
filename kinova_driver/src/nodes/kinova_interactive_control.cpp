@@ -143,14 +143,19 @@ void sendArmJointGoal(const std::string marker_name, double joint_offset)
     ArmJoint_actionlibClient client("/"+tf_prefix_+"_driver/joints_action/joint_angles", true);
     kinova_msgs::ArmJointAnglesGoal goal;
 
-    goal.angles.joint1 = current_joint_state.position[0];
-    goal.angles.joint2 = current_joint_state.position[1];
-    goal.angles.joint3 = current_joint_state.position[2];
-    goal.angles.joint4 = current_joint_state.position[3];
-    if(arm_joint_number_==6)
+    goal.angles.joint1 = current_joint_state.position[0]*180/M_PI;
+    goal.angles.joint2 = current_joint_state.position[1]*180/M_PI;
+    goal.angles.joint3 = current_joint_state.position[2]*180/M_PI;
+    goal.angles.joint4 = current_joint_state.position[3]*180/M_PI;
+    if(arm_joint_number_==4)
     {
-        goal.angles.joint5 = current_joint_state.position[4];
-        goal.angles.joint6 = current_joint_state.position[5];
+        goal.angles.joint5 = 0.0;
+        goal.angles.joint6 = 0.0;
+    }
+    else if(arm_joint_number_==6)
+    {
+        goal.angles.joint5 = current_joint_state.position[4]*180/M_PI;
+        goal.angles.joint6 = current_joint_state.position[5]*180/M_PI;
     }
 
     client.waitForServer();
@@ -171,35 +176,37 @@ void sendArmJointGoal(const std::string marker_name, double joint_offset)
         goal.angles.joint4 += joint_offset;
         break;
     case 5:
-        goal.angles.joint5 += joint_offset;
+        if(arm_joint_number_==6)
+        {
+            goal.angles.joint5 += joint_offset;
+        }
         break;
     case 6:
-        goal.angles.joint6 += joint_offset;
+        if(arm_joint_number_==6)
+        {
+            goal.angles.joint6 += joint_offset;
+        }
         break;
     }
 
-    if (arm_joint_number_==4)
+    if (arm_joint_number_==6)
     {
-        ROS_INFO( " current joint state is as : %f, %f, %f, %f, %f, %f\n",  current_joint_state.position[0], current_joint_state.position[1], current_joint_state.position[2], current_joint_state.position[3], current_joint_state.position[4], current_joint_state.position[5]);
-
-        ROS_INFO( " joint goal is set as : %f, %f, %f, %f, %f, %f\n",  goal.angles.joint1, goal.angles.joint2, goal.angles.joint3, goal.angles.joint4, goal.angles.joint5, goal.angles.joint6);
+        ROS_INFO( " current joint is as : %f, %f, %f, %f, %f, %f (degree)\n",  current_joint_state.position[0], current_joint_state.position[1], current_joint_state.position[2], current_joint_state.position[3], current_joint_state.position[4], current_joint_state.position[5]);
     }
-    else if(arm_joint_number_==6)
+    else if(arm_joint_number_==4)
     {
-        ROS_INFO( " current joint state is as : %f, %f, %f, %f\n",  current_joint_state.position[0], current_joint_state.position[1], current_joint_state.position[2], current_joint_state.position[3]);
-
-        ROS_INFO( " joint goal is set as : %f, %f, %f, %f\n",  goal.angles.joint1, goal.angles.joint2, goal.angles.joint3, goal.angles.joint4);
+        ROS_INFO( " current joint is as : %f, %f, %f, %f (degree)\n",  current_joint_state.position[0], current_joint_state.position[1], current_joint_state.position[2], current_joint_state.position[3]);
     }
+    ROS_INFO( " joint goal is set as : %f, %f, %f, %f, %f, %f (degree)\n",  goal.angles.joint1, goal.angles.joint2, goal.angles.joint3, goal.angles.joint4, goal.angles.joint5, goal.angles.joint6);
 
-
-    goal.angles.joint1 = 4.797089;
-    goal.angles.joint2 = 3.052979;
-    goal.angles.joint3 = 1.825366;
-    goal.angles.joint4 = 0;
-    goal.angles.joint5 = 0;
-    goal.angles.joint6 = 0;
+//    goal.angles.joint1 = 274.908081055;
+//    goal.angles.joint2 = 174.905563354;
+//    goal.angles.joint3 = 79.0397491455;
+//    goal.angles.joint4 = 179.863647461;
+//    goal.angles.joint5 = 0;
+//    goal.angles.joint6 = 0;
     ROS_WARN_STREAM("GOAL IS: " << goal);
-//    client.sendGoal(goal);
+    client.sendGoal(goal);
 
 }
 
@@ -331,7 +338,7 @@ void processFeedback( const visualization_msgs::InteractiveMarkerFeedbackConstPt
                              << "\nframe: " << feedback->header.frame_id
                              << " time: " << feedback->header.stamp.sec << "sec, "
                              << feedback->header.stamp.nsec << " nsec");
-            sendArmJointGoal(feedback->marker_name, yaw_mouseup-yaw_mousedown);
+            sendArmJointGoal(feedback->marker_name, (yaw_mouseup-yaw_mousedown)*180/M_PI);
             //   armJoint_interMark_server->applyChanges();
         }
         //reset flag for MOUSE_DOWN
