@@ -65,7 +65,7 @@ arm:
     - TRRTkConfigDefault
     - PRMkConfigDefault
     - PRMstarkConfigDefault
-Fingers:
+gripper:
   planner_configs:
     - SBLkConfigDefault
     - ESTkConfigDefault
