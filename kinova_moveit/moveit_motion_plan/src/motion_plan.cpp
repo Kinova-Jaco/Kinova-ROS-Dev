@@ -7,6 +7,8 @@
 #include <moveit_msgs/AttachedCollisionObject.h>
 #include <moveit_msgs/CollisionObject.h>
 
+//#include <kinova_driver/kinova_ros_types.h>
+
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "motion_plan");
@@ -16,7 +18,7 @@ int main(int argc, char **argv)
 
 
   /* This sleep is ONLY to allow Rviz to come up */
-  sleep(20.0);
+  sleep(10.0);
   
   // BEGIN_TUTORIAL
   // 
@@ -45,15 +47,24 @@ int main(int argc, char **argv)
   // We can also print the name of the end-effector link for this group.
   ROS_INFO("Reference frame: %s", group.getEndEffectorLink().c_str());
 
+  // Home position for jaco:
+//  currentCartesianCommand = [feedback.X, feedback.Y, feedback.Z, feedback.ThetaX, feedback.ThetaY, feedback.Z]
+//  currentCartesianCommand = [0.212322831154, -0.257197618484, 0.509646713734, 1.63771402836, 1.11316478252, 0.134094119072]
+  tf::Pose Home;
+  Home.setOrigin(tf::Vector3(0.212322831154, -0.257197618484, 0.509646713734));
+//  Home.setRotation(kinova::EulerXYZ2Quaternion(1.63771402836,1.11316478252, 0.134094119072));
+  Home.setRotation(tf::Quaternion(0.68463, -0.22436, 0.68808, 0.086576));
+
+  tf::Pose random_pose;
+  random_pose.setOrigin(tf::Vector3(0.54882, -0.30854,  0.65841));
+  random_pose.setRotation(tf::Quaternion(0.68463, -0.22436, 0.68808, 0.086576));
+
   // Planning to a Pose goal
   // ^^^^^^^^^^^^^^^^^^^^^^^
   // We can plan a motion for this group to a desired pose for the 
   // end-effector.
   geometry_msgs::Pose target_pose1;
-  target_pose1.orientation.w = 1.0;
-  target_pose1.position.x = 0.28;
-  target_pose1.position.y = -0.7;
-  target_pose1.position.z = 1.0;
+  tf::poseTFToMsg(random_pose, target_pose1);
   group.setPoseTarget(target_pose1);
 
 
@@ -110,7 +121,7 @@ int main(int argc, char **argv)
   
   // Now, let's modify one of the joints, plan to the new joint
   // space goal and visualize the plan.
-  group_variable_values[0] = -1.0;  
+  group_variable_values[5] = -1.0;
   group.setJointValueTarget(group_variable_values);
   success = group.plan(my_plan);
 
@@ -126,8 +137,14 @@ int main(int argc, char **argv)
   // First define the path constraint.
   moveit_msgs::OrientationConstraint ocm;  
   ocm.link_name = "j2n6s300_end_effector";
-  ocm.header.frame_id = "root";
-  ocm.orientation.w = 1.0;
+  ocm.header.frame_id = "j2n6s300_link_base";
+//  Home.setOrigin(tf::Vector3(0.212322831154, -0.257197618484, 0.509646713734));
+//  Home.setRotation(tf::Quaternion(0.68463, -0.22436, 0.68808, 0.086576));
+  ocm.orientation.x = 0.68463;
+  ocm.orientation.y = -0.22436;
+  ocm.orientation.z = 0.68808;
+  ocm.orientation.w = 0.086576;
+
   ocm.absolute_x_axis_tolerance = 0.1;
   ocm.absolute_y_axis_tolerance = 0.1;
   ocm.absolute_z_axis_tolerance = 0.1;
@@ -143,15 +160,14 @@ int main(int argc, char **argv)
   // satisfies the path constraints. So, we need to set the start
   // state to a new pose. 
   robot_state::RobotState start_state(*group.getCurrentState());
-  geometry_msgs::Pose start_pose2;
-  start_pose2.orientation.w = 1.0;
-  start_pose2.position.x = 0.55;
-  start_pose2.position.y = -0.05;
-  start_pose2.position.z = 0.8;
+  geometry_msgs::Pose start_pose2; // start from Home pose of j2n6
+  tf::poseTFToMsg(Home, start_pose2);
+
   const robot_state::JointModelGroup *joint_model_group =
                   start_state.getJointModelGroup(group.getName());
   start_state.setFromIK(joint_model_group, start_pose2);
   group.setStartState(start_state);
+  start_state.printStatePositions();
   
   // Now we will plan to the earlier pose target from the new 
   // start state that we have just created.
@@ -174,16 +190,16 @@ int main(int argc, char **argv)
   std::vector<geometry_msgs::Pose> waypoints;
 
   geometry_msgs::Pose target_pose3 = start_pose2;
-  target_pose3.position.x += 0.2;
-  target_pose3.position.z += 0.2;
+  target_pose3.position.x += 0.02;
+  target_pose3.position.z += 0.02;
   waypoints.push_back(target_pose3);  // up and out
 
-  target_pose3.position.y -= 0.2;
+  target_pose3.position.y -= 0.02;
   waypoints.push_back(target_pose3);  // left
 
-  target_pose3.position.z -= 0.2;
-  target_pose3.position.y += 0.2;
-  target_pose3.position.x -= 0.2;
+  target_pose3.position.z -= 0.02;
+  target_pose3.position.y += 0.02;
+  target_pose3.position.x -= 0.02;
   waypoints.push_back(target_pose3);  // down and right (back to start)
 
   // We want the cartesian path to be interpolated at a resolution of 1 cm
@@ -215,16 +231,18 @@ int main(int argc, char **argv)
   shape_msgs::SolidPrimitive primitive;
   primitive.type = primitive.BOX;
   primitive.dimensions.resize(3);
-  primitive.dimensions[0] = 0.4;
-  primitive.dimensions[1] = 0.1;
-  primitive.dimensions[2] = 0.4;
+  // dimention less than the distance between start point and goal point
+  primitive.dimensions[0] = 0.1;
+  primitive.dimensions[1] = 0.02;
+  primitive.dimensions[2] = 0.05;
 
   /* A pose for the box (specified relative to frame_id) */
   geometry_msgs::Pose box_pose;
   box_pose.orientation.w = 1.0;
-  box_pose.position.x =  0.6;
-  box_pose.position.y = -0.4;
-  box_pose.position.z =  1.2;
+  // place between start point and goal point.
+  box_pose.position.x =  0.37;
+  box_pose.position.y = -0.27;
+  box_pose.position.z =  0.57;
 
   collision_object.primitives.push_back(primitive);
   collision_object.primitive_poses.push_back(box_pose);
