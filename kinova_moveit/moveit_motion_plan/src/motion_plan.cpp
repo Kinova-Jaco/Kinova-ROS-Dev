@@ -7,7 +7,7 @@
 #include <moveit_msgs/AttachedCollisionObject.h>
 #include <moveit_msgs/CollisionObject.h>
 
-//#include <kinova_driver/kinova_ros_types.h>
+#include <kinova_driver/kinova_ros_types.h>
 
 int main(int argc, char **argv)
 {
@@ -52,8 +52,8 @@ int main(int argc, char **argv)
 //  currentCartesianCommand = [0.212322831154, -0.257197618484, 0.509646713734, 1.63771402836, 1.11316478252, 0.134094119072]
   tf::Pose Home;
   Home.setOrigin(tf::Vector3(0.212322831154, -0.257197618484, 0.509646713734));
-//  Home.setRotation(kinova::EulerXYZ2Quaternion(1.63771402836,1.11316478252, 0.134094119072));
-  Home.setRotation(tf::Quaternion(0.68463, -0.22436, 0.68808, 0.086576));
+  Home.setRotation(kinova::EulerXYZ2Quaternion(1.63771402836,1.11316478252, 0.134094119072));
+//  Home.setRotation(tf::Quaternion(0.68463, -0.22436, 0.68808, 0.086576));
 
   tf::Pose random_pose;
   random_pose.setOrigin(tf::Vector3(0.54882, -0.30854,  0.65841));
@@ -132,10 +132,25 @@ int main(int argc, char **argv)
   // Planning with Path Constraints
   // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   //
+  // We will reuse the old goal that we had and plan to it.
+  // Note that this will only work if the current state already 
+  // satisfies the path constraints. So, we need to set the start
+  // state to a new pose. 
+  robot_state::RobotState start_state(*group.getCurrentState());
+  geometry_msgs::Pose start_pose2; // start from Home pose of j2n6
+  tf::poseTFToMsg(Home, start_pose2);
+
+  const robot_state::JointModelGroup *joint_model_group =
+                  start_state.getJointModelGroup(group.getName());
+  start_state.setFromIK(joint_model_group, start_pose2);
+  group.setStartState(start_state);
+  ROS_WARN("start_state after set: ");
+  start_state.printStatePositions();
+
   // Path constraints can easily be specified for a link on the robot.
   // Let's specify a path constraint and a pose goal for our group.
   // First define the path constraint.
-  moveit_msgs::OrientationConstraint ocm;  
+  moveit_msgs::OrientationConstraint ocm;
   ocm.link_name = "j2n6s300_end_effector";
   ocm.header.frame_id = "j2n6s300_link_base";
 //  Home.setOrigin(tf::Vector3(0.212322831154, -0.257197618484, 0.509646713734));
@@ -149,26 +164,12 @@ int main(int argc, char **argv)
   ocm.absolute_y_axis_tolerance = 0.1;
   ocm.absolute_z_axis_tolerance = 0.1;
   ocm.weight = 1.0;
-  
+
   // Now, set it as the path constraint for the group.
   moveit_msgs::Constraints test_constraints;
-  test_constraints.orientation_constraints.push_back(ocm);  
+  test_constraints.orientation_constraints.push_back(ocm);
   group.setPathConstraints(test_constraints);
 
-  // We will reuse the old goal that we had and plan to it.
-  // Note that this will only work if the current state already 
-  // satisfies the path constraints. So, we need to set the start
-  // state to a new pose. 
-  robot_state::RobotState start_state(*group.getCurrentState());
-  geometry_msgs::Pose start_pose2; // start from Home pose of j2n6
-  tf::poseTFToMsg(Home, start_pose2);
-
-  const robot_state::JointModelGroup *joint_model_group =
-                  start_state.getJointModelGroup(group.getName());
-  start_state.setFromIK(joint_model_group, start_pose2);
-  group.setStartState(start_state);
-  start_state.printStatePositions();
-  
   // Now we will plan to the earlier pose target from the new 
   // start state that we have just created.
   group.setPoseTarget(target_pose1);

@@ -25,6 +25,8 @@ catkin_package(
 )
 find_package(Eigen REQUIRED)
 
+find_package(kinova_driver REQUIRED)
+
 ###########
 ## Build ##
 ###########
@@ -34,9 +36,11 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIR} ${EIGEN_INCLUDE_DIRS})
 include_directories(${catkin_INCLUDE_DIRS})
 link_directories(${catkin_LIBRARY_DIRS})
 
+include_directories(${kinova_driver_INCLUDE_DIRS})
+
 add_executable(motion_plan src/motion_plan.cpp)
-target_link_libraries(motion_plan ${catkin_LIBRARIES} ${Boost_LIBRARIES})
-#install(TARGETS motion_plan DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+target_link_libraries(motion_plan ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${kinova_driver_LIBRARIES})
+install(TARGETS motion_plan DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 get_cmake_property(_variableNames VARIABLES)
 foreach (_variableName ${_variableNames})
