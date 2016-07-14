@@ -1,7 +1,26 @@
 #include <iostream>
+#include <map>
 #include <moveit/move_group_interface/move_group.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <kinova_driver/kinova_ros_types.h>
+
+typedef std::map<std::string, double> state_map;
+
+geometry_msgs::Pose to_geometry_pose(tf::Pose tf_pose)
+{
+    geometry_msgs::Pose geometry_pose;
+    geometry_pose.position.x = tf_pose.getOrigin().x();
+    geometry_pose.position.y = tf_pose.getOrigin().y();
+    geometry_pose.position.z = tf_pose.getOrigin().z();
+
+    tf::Quaternion q = tf_pose.getRotation();
+    geometry_pose.orientation.x = q.x();
+    geometry_pose.orientation.y = q.y();
+    geometry_pose.orientation.z = q.z();
+    geometry_pose.orientation.w = q.w();
+
+    return geometry_pose;
+}
 
 int main(int argc, char** argv)
 {
@@ -13,18 +32,24 @@ int main(int argc, char** argv)
     /* This sleep is ONLY to allow Rviz to come up */
     sleep(10.0);
 
-    tf::Pose Retract;
-    Retract.setOrigin(tf::Vector3(0.028, -0.1714, 0.2995));
-    Retract.setRotation(tf::Quaternion(0.68801, -0.5464, 0.32995, 0.34528));
+    // Retract (rest pose)
+    tf::Pose tf_retract;
+    tf_retract.setOrigin(tf::Vector3(0.028, -0.1714, 0.2995));
+    tf_retract.setRotation(tf::Quaternion(0.68801, -0.5464, 0.32995, 0.34528));
+    geometry_msgs::Pose Retract = to_geometry_pose(tf_retract);
 
-    tf::Pose Home;
-    Home.setOrigin(tf::Vector3(0.212322831154, -0.257197618484, 0.509646713734));
-//    Home.setRotation(kinova::EulerXYZ2Quaternion(1.63771402836,1.11316478252, 0.134094119072));
-    Home.setRotation(tf::Quaternion(0.68463, -0.22436, 0.68808, 0.086576));
+    // Home (ready pose)
+    tf::Pose tf_home;
+    tf_home.setOrigin(tf::Vector3(0.212322831154, -0.257197618484, 0.509646713734));
+//    tf_home.setRotation(kinova::EulerXYZ2Quaternion(1.63771402836,1.11316478252, 0.134094119072));
+    tf_home.setRotation(tf::Quaternion(0.68463, -0.22436, 0.68808, 0.086576));
+    geometry_msgs::Pose Home = to_geometry_pose(tf_home);
+    double home_joint_value[6] = {-1.47550822, 2.92151711,  1.00484714, -2.08487422,  1.44703677, 1.31851771};
 
-    tf::Pose random_pose;
-    random_pose.setOrigin(tf::Vector3(0.54882, -0.30854,  0.65841));
-    random_pose.setRotation(tf::Quaternion(0.68463, -0.22436, 0.68808, 0.086576));
+    tf::Pose tf_random_pose;
+    tf_random_pose.setOrigin(tf::Vector3(0.54882, -0.30854,  0.65841));
+    tf_random_pose.setRotation(tf::Quaternion(0.68463, -0.22436, 0.68808, 0.086576));
+    geometry_msgs::Pose Random = to_geometry_pose(tf_random_pose);
 
 
     moveit::planning_interface::MoveGroup group("arm");
@@ -44,19 +69,44 @@ int main(int argc, char** argv)
     }
 
     ROS_WARN("---------------- Initial state -------------");
+    std::vector<std::string> joint_names = group.getActiveJoints();
+
+    robot_state::RobotState home_state = *group.getCurrentState();
+    const state_map::value_type temp[] = {
+        std::make_pair(joint_names[1], home_joint_value[1]),
+        std::make_pair(joint_names[2], home_joint_value[2]),
+        std::make_pair(joint_names[3], home_joint_value[3]),
+        std::make_pair(joint_names[4], home_joint_value[4]),
+        std::make_pair(joint_names[5], home_joint_value[5]),
+        std::make_pair(joint_names[6], home_joint_value[6])};
+    const state_map home_state_map(temp, temp + sizeof temp / sizeof temp[0]);
+
+//    for (int i = 0; i<joint_names.size(); i++)
+//    {
+//        home_state_map_[joint_names[i]] = home_joint_value[i];
+//    }
+
+    home_state.getJointModelGroup(group.getName())->addDefaultState("home", home_state_map);
 
 
     ROS_INFO_STREAM("getCurrentPose() is: " << group.getCurrentPose("j2n6s300_end_effector").pose );
     ROS_INFO_STREAM("printStatePositions() is: ");
     group.getCurrentState()->printStatePositions();
 
+    return 0;
 
     ROS_WARN("---------------- Set to Home state -------------");
 
-    robot_state::RobotState home_state = *group.getCurrentState();
+//    robot_state::RobotState home_state = *group.getCurrentState();
     // joint value of Home pose (ready pose)
-    const double home_joint_value[6] = {-1.47550822, 2.92151711,  1.00484714, -2.08487422,  1.44703677, 1.31851771};
-    home_state.setVariablePositions(home_joint_value);
+//    double home_joint_value[6] = {-1.47550822, 2.92151711,  1.00484714, -2.08487422,  1.44703677, 1.31851771};
+//    home_state.setVariablePositions(home_joint_value);
+    ROS_WARN_STREAM("Home is: " << Home);
+
+    home_state.setFromIK(home_state.getJointModelGroup(group.getName()), Home);
+    ROS_WARN("Home state is: ");
+    home_state.printStatePositions();
+
     group.setJointValueTarget(home_state);
     group.move();
     sleep(5);
@@ -72,13 +122,13 @@ int main(int argc, char** argv)
     // setFromIK() does not work here?
     /*
     geometry_msgs::Pose goal;
-    tf::poseTFToMsg(Retract, goal);
+    tf::poseTFToMsg(tf_retract, goal);
     group.setPoseTarget(goal);
     goal_state.setFromIK(goal_state.getJointModelGroup(group.getName()), goal);
     */
 
     // joint value of Retract pose (rest pose)
-    const double goal_joint_value[6] = {-1.57079622, 2.61799388,  0.4712389 , -1.6057028 ,  0.08726646, 1.74532925};
+    double goal_joint_value[6] = {-1.57079622, 2.61799388,  0.4712389 , -1.6057028 ,  0.08726646, 1.74532925};
     goal_state.setVariablePositions(goal_joint_value);
 
     group.setJointValueTarget(goal_state);
