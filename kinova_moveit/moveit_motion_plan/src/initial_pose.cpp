@@ -3,6 +3,7 @@
 #include <moveit/move_group_interface/move_group.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <kinova_driver/kinova_ros_types.h>
+#include <moveit/robot_model_loader/robot_model_loader.h>
 
 typedef std::map<std::string, double> state_map;
 
@@ -69,35 +70,23 @@ int main(int argc, char** argv)
     }
 
     ROS_WARN("---------------- Initial state -------------");
-    std::vector<std::string> joint_names = group.getActiveJoints();
 
-    robot_state::RobotState home_state = *group.getCurrentState();
-    const state_map::value_type temp[] = {
-        std::make_pair(joint_names[1], home_joint_value[1]),
-        std::make_pair(joint_names[2], home_joint_value[2]),
-        std::make_pair(joint_names[3], home_joint_value[3]),
-        std::make_pair(joint_names[4], home_joint_value[4]),
-        std::make_pair(joint_names[5], home_joint_value[5]),
-        std::make_pair(joint_names[6], home_joint_value[6])};
-    const state_map home_state_map(temp, temp + sizeof temp / sizeof temp[0]);
+    robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
+    robot_model::RobotModelPtr robot_model_ptr=robot_model_loader.getModel();
+    robot_state::RobotStatePtr robot_state_ptr(group.getCurrentState());
+    robot_state_ptr->setToDefaultValues(robot_state_ptr->getJointModelGroup(group.getName()), "home");
 
-//    for (int i = 0; i<joint_names.size(); i++)
-//    {
-//        home_state_map_[joint_names[i]] = home_joint_value[i];
-//    }
-
-    home_state.getJointModelGroup(group.getName())->addDefaultState("home", home_state_map);
+    ROS_WARN("DefaultPlannedID is: %s.", group.getDefaultPlannerId().c_str());
 
 
     ROS_INFO_STREAM("getCurrentPose() is: " << group.getCurrentPose("j2n6s300_end_effector").pose );
     ROS_INFO_STREAM("printStatePositions() is: ");
     group.getCurrentState()->printStatePositions();
 
-    return 0;
 
     ROS_WARN("---------------- Set to Home state -------------");
 
-//    robot_state::RobotState home_state = *group.getCurrentState();
+    robot_state::RobotState home_state = *group.getCurrentState();
     // joint value of Home pose (ready pose)
 //    double home_joint_value[6] = {-1.47550822, 2.92151711,  1.00484714, -2.08487422,  1.44703677, 1.31851771};
 //    home_state.setVariablePositions(home_joint_value);
