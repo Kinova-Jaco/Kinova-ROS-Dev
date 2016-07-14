@@ -42,6 +42,10 @@ add_executable(motion_plan src/motion_plan.cpp)
 target_link_libraries(motion_plan ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${kinova_driver_LIBRARIES})
 install(TARGETS motion_plan DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
+add_executable(initial_pose src/initial_pose.cpp)
+target_link_libraries(initial_pose ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${kinova_driver_LIBRARIES})
+install(TARGETS initial_pose DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
 get_cmake_property(_variableNames VARIABLES)
 foreach (_variableName ${_variableNames})
     message(STATUS "${_variableName}=${${_variableName}}")
