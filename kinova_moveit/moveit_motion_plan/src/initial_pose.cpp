@@ -68,7 +68,6 @@ int main(int argc, char** argv)
     group.setGoalJointTolerance(0.1*M_PI/180);
     group.setGoalPositionTolerance(0.001);
     group.setGoalOrientationTolerance(0.1*M_PI/180);
-
     // getPlanningFrame() is: /root
     ROS_INFO_STREAM("getPlanningFrame() is: " << group.getPlanningFrame());
 
@@ -97,24 +96,22 @@ int main(int argc, char** argv)
 
     ROS_WARN("---------------- Moving to goal -------------");
 
-    robot_state::RobotState goal_state = *group.getCurrentState();
+//    robot_state::RobotState goal_state = *group.getCurrentState();
+//    goal_state.setFromIK(goal_state.getJointModelGroup(group.getName()), Retract,10,1);
+//    goal_state.update();
+//    group.setJointValueTarget(goal_state);
 
-    goal_state.setFromIK(goal_state.getJointModelGroup(group.getName()), Retract,10,1);
-    goal_state.update();
+    group.setPoseTarget(Retract);
 
-    group.setJointValueTarget(goal_state);
+    ROS_INFO("Goal planed: ");
+    group.getJointValueTarget().printStatePositions();
 
-    ROS_INFO("Goal reached: ");
-    group.getCurrentState()->printStatePositions();
-
-
-
-    ROS_WARN("----------- Moving to goal (group.move) ----------");
     moveit::planning_interface::MoveGroup::Plan my_plan;
     if(group.plan(my_plan))
     {
+        sleep(5);
         ROS_INFO("Success in group.plan(my_plan)");
-        group.move();
+        group.execute(my_plan);
         sleep(5);
     }
 
