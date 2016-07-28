@@ -93,6 +93,14 @@ add_executable(kinova_interactive_control src/nodes/kinova_interactive_control.c
 add_dependencies(kinova_interactive_control ${catkin_EXPORTED_TARGETS})
 target_link_libraries(kinova_interactive_control ${catkin_LIBRARIES} kinova_driver)
 
+
+add_executable(kinova_joint_trajectory_controller
+    src/nodes/kinova_joint_trajectory_controller.cpp
+    include/kinova_driver/kinova_joint_trajectory_controller.h)
+add_dependencies(kinova_joint_trajectory_controller ${catkin_EXPORTED_TARGETS})
+target_link_libraries(kinova_joint_trajectory_controller ${catkin_LIBRARIES} kinova_driver)
+
+
 #############
 ## Install ##
 #############
