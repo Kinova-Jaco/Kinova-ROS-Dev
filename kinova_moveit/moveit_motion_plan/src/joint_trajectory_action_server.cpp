@@ -11,14 +11,11 @@ JointTrajectoryActionController::JointTrajectoryActionController(ros::NodeHandle
     ros::NodeHandle pn("~");
 
     int arm_joint_num = 6;
-
-    std::vector<std::string> joint_names_;
     joint_names_.resize(arm_joint_num);
 
     for (uint i = 0; i<joint_names_.size(); i++)
     {
         joint_names_[i] = "j2n6s300_joint_" + boost::lexical_cast<std::string>(i+1);
-        std::cout << "joint names: " << joint_names_[i] << std::endl;
     }
 
     pn.param("constraints/goal_time", goal_time_constraint_, 0.0);
@@ -49,16 +46,16 @@ JointTrajectoryActionController::JointTrajectoryActionController(ros::NodeHandle
         if (started_waiting_for_controller != ros::Time(0) &&
                 ros::Time::now() > started_waiting_for_controller + ros::Duration(30.0))
         {
-            ROS_WARN("Waited for the controller for 30 seconds, but it never showed up.");
+            ROS_WARN("Waited for the controller for 30 seconds, but it never showed up. Continue waiting the feedback of trajectory state on topic /trajectory_controller/state ...");
             started_waiting_for_controller = ros::Time(0);
         }
         ros::Duration(0.1).sleep();
     }
 
 
-    ROS_WARN("Start Follow_Joint_Trajectory_Action server!");
     action_server_follow_->start();
-
+    ROS_INFO("Start Follow_Joint_Trajectory_Action server!");
+    ROS_INFO("Waiting for an plan execution (goal) from Moveit");
 
 }
 
@@ -128,6 +125,7 @@ void JointTrajectoryActionController::watchdog(const ros::TimerEvent &e)
 
 void JointTrajectoryActionController::goalCBFollow(FJTAS::GoalHandle gh)
 {
+    ROS_INFO("Joint_trajectory_action_server received goal!");
 
     // Ensures that the joints in the goal match the joints we are commanding.
     if (!setsEqual(joint_names_, gh.getGoal()->trajectory.joint_names))
@@ -154,11 +152,13 @@ void JointTrajectoryActionController::goalCBFollow(FJTAS::GoalHandle gh)
     gh.setAccepted();
     active_goal_ = gh;
     has_active_goal_ = true;
+    ROS_INFO("Joint_trajectory_action_server accepted goal!");
 
 
     // Sends the trajectory along to the controller
     current_traj_ = active_goal_.getGoal()->trajectory;
     pub_controller_command_.publish(current_traj_);
+    ROS_INFO("Joint_trajectory_action_server published goal via command publisher!");
 }
 
 
@@ -181,7 +181,10 @@ void JointTrajectoryActionController::cancelCBFollow(FJTAS::GoalHandle gh)
 
 void JointTrajectoryActionController::controllerStateCB(const control_msgs::FollowJointTrajectoryFeedbackConstPtr &msg)
 {
+    ROS_INFO_ONCE("Joint_trajectory_action_server receive feedback of trajectory state from topic: /trajectory_controller/state");
+
     last_controller_state_ = msg;
+
     ros::Time now = ros::Time::now();
 
     if (!has_active_goal_)
@@ -218,7 +221,7 @@ void JointTrajectoryActionController::controllerStateCB(const control_msgs::Foll
 
                 active_goal_.setAborted();
                 has_active_goal_ = false;
-                ROS_WARN("Aborting because we wouldmsg up outside the trajectory constraints");
+                ROS_WARN("Aborting because we would up outside the trajectory constraints");
                 return;
             }
         }
@@ -264,13 +267,12 @@ void JointTrajectoryActionController::controllerStateCB(const control_msgs::Foll
 
 int main(int argc, char** argv)
 {
-    ros::init(argc, argv, "joint_trajecotry_controller");
+    ros::init(argc, argv, "follow_joint_trajecotry_action_server");
     ros::NodeHandle node;
     ros::AsyncSpinner spinner(1);
     spinner.start();
 
     kinova::JointTrajectoryActionController jtac(node);
-    std::cout << "hello world!" << std::endl;
 
     ros::spin();
     return 0;
