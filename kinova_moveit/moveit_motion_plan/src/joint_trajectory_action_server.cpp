@@ -108,6 +108,7 @@ void JointTrajectoryActionController::watchdog(const ros::TimerEvent &e)
                      (now - last_controller_state_->header.stamp).toSec());
         }
 
+//        if (false)
         if (should_abort)
         {
             // Stops the controller.
