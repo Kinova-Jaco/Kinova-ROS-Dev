@@ -11,14 +11,11 @@ JointTrajectoryActionController::JointTrajectoryActionController(ros::NodeHandle
     ros::NodeHandle pn("~");
 
     int arm_joint_num = 6;
-
-    std::vector<std::string> joint_names_;
     joint_names_.resize(arm_joint_num);
 
     for (uint i = 0; i<joint_names_.size(); i++)
     {
         joint_names_[i] = "j2n6s300_joint_" + boost::lexical_cast<std::string>(i+1);
-        std::cout << "joint names: " << joint_names_[i] << std::endl;
     }
 
     pn.param("constraints/goal_time", goal_time_constraint_, 0.0);
@@ -49,16 +46,16 @@ JointTrajectoryActionController::JointTrajectoryActionController(ros::NodeHandle
         if (started_waiting_for_controller != ros::Time(0) &&
                 ros::Time::now() > started_waiting_for_controller + ros::Duration(30.0))
         {
-            ROS_WARN("Waited for the controller for 30 seconds, but it never showed up.");
+            ROS_WARN("Waited for the controller for 30 seconds, but it never showed up. Continue waiting the feedback of trajectory state on topic /trajectory_controller/state ...");
             started_waiting_for_controller = ros::Time(0);
         }
         ros::Duration(0.1).sleep();
     }
 
 
-    ROS_WARN("Start Follow_Joint_Trajectory_Action server!");
     action_server_follow_->start();
-
+    ROS_INFO("Start Follow_Joint_Trajectory_Action server!");
+    ROS_INFO("Waiting for an plan execution (goal) from Moveit");
 
 }
 
@@ -128,6 +125,7 @@ void JointTrajectoryActionController::watchdog(const ros::TimerEvent &e)
 
 void JointTrajectoryActionController::goalCBFollow(FJTAS::GoalHandle gh)
 {
+    ROS_INFO("Joint_trajectory_action_server received goal!");
 
     // Ensures that the joints in the goal match the joints we are commanding.
     if (!setsEqual(joint_names_, gh.getGoal()->trajectory.joint_names))
@@ -154,11 +152,13 @@ void JointTrajectoryActionController::goalCBFollow(FJTAS::GoalHandle gh)
     gh.setAccepted();
     active_goal_ = gh;
     has_active_goal_ = true;
+    ROS_INFO("Joint_trajectory_action_server accepted goal!");
 
 
     // Sends the trajectory along to the controller
     current_traj_ = active_goal_.getGoal()->trajectory;
     pub_controller_command_.publish(current_traj_);
+    ROS_INFO("Joint_trajectory_action_server published goal via command publisher!");
 }
 
 
@@ -181,96 +181,74 @@ void JointTrajectoryActionController::cancelCBFollow(FJTAS::GoalHandle gh)
 
 void JointTrajectoryActionController::controllerStateCB(const control_msgs::FollowJointTrajectoryFeedbackConstPtr &msg)
 {
+    ROS_INFO_ONCE("Joint_trajectory_action_server receive feedback of trajectory state from topic: /trajectory_controller/state");
+
     last_controller_state_ = msg;
+
     ros::Time now = ros::Time::now();
 
     if (!has_active_goal_)
         return;
     if (current_traj_.points.empty())
         return;
-    if (now < current_traj_.header.stamp + current_traj_.points[0].time_from_start)
+
+//    ROS_WARN_STREAM_ONCE("now is: " << now << "; current_traj_.header.stamp is: " << current_traj_.header.stamp <<    "; current_traj_.points[0].time_from_start is: " << current_traj_.points[0].time_from_start << "; msg->header.stamp is: " << msg->header.stamp);
+//    if (now < current_traj_.header.stamp + current_traj_.points[0].time_from_start)
+    if (now < msg->header.stamp + current_traj_.points[0].time_from_start)
+    {
         return;
+    }
 
     if (!setsEqual(joint_names_, msg->joint_names))
     {
-        ROS_ERROR("Joint names from the controller don't match our joint names.");
+        ROS_ERROR_ONCE("Joint names from the controller don't match our joint names.");
         return;
     }
 
     int last = current_traj_.points.size() - 1;
-    ros::Time end_time = current_traj_.header.stamp + current_traj_.points[last].time_from_start;
+    ros::Time end_time = msg->header.stamp + current_traj_.points[last].time_from_start;
 
-    // Verifies that the controller has stayed within the trajectory constraints.
-
-    if (now < end_time)
+    // Checks that we have ended inside the goal constraints
+    bool inside_goal_constraints = true;
+    for (size_t i = 0; i < msg->joint_names.size() && inside_goal_constraints; ++i)
     {
-        // Checks that the controller is inside the trajectory constraints.
-        for (size_t i = 0; i < msg->joint_names.size(); ++i)
+        double abs_error = fabs(msg->error.positions[i]);
+        double goal_constraint = goal_constraints_[msg->joint_names[i]];
+        if (goal_constraint >= 0 && abs_error > goal_constraint)
+            inside_goal_constraints = false;
+        // It's important to be stopped if that's desired.
+        if ( !(msg->desired.velocities.empty()) && (fabs(msg->desired.velocities[i]) < 1e-6) )
         {
-            double abs_error = fabs(msg->error.positions[i]);
-            double constraint = trajectory_constraints_[msg->joint_names[i]];
-            if (constraint >= 0 && abs_error > constraint)
-            {
-                // Stops the controller.
-                trajectory_msgs::JointTrajectory empty;
-                empty.joint_names = joint_names_;
-                pub_controller_command_.publish(empty);
-
-                active_goal_.setAborted();
-                has_active_goal_ = false;
-                ROS_WARN("Aborting because we wouldmsg up outside the trajectory constraints");
-                return;
-            }
+            if (fabs(msg->actual.velocities[i]) > stopped_velocity_tolerance_)
+                inside_goal_constraints = false;
         }
+    }
+    if (inside_goal_constraints)
+    {
+        active_goal_.setSucceeded();
+        has_active_goal_ = false;
+    }
+    else if (now < end_time + ros::Duration(goal_time_constraint_))
+    {
+        // Still have some time left to make it.
     }
     else
     {
-        // Checks that we have ended inside the goal constraints
-        bool inside_goal_constraints = true;
-        for (size_t i = 0; i < msg->joint_names.size() && inside_goal_constraints; ++i)
-        {
-            double abs_error = fabs(msg->error.positions[i]);
-            double goal_constraint = goal_constraints_[msg->joint_names[i]];
-            if (goal_constraint >= 0 && abs_error > goal_constraint)
-                inside_goal_constraints = false;
-
-            // It's important to be stopped if that's desired.
-            if (fabs(msg->desired.velocities[i]) < 1e-6)
-            {
-                if (fabs(msg->actual.velocities[i]) > stopped_velocity_tolerance_)
-                    inside_goal_constraints = false;
-            }
-        }
-
-        if (inside_goal_constraints)
-        {
-            active_goal_.setSucceeded();
-            has_active_goal_ = false;
-        }
-        else if (now < end_time + ros::Duration(goal_time_constraint_))
-        {
-            // Still have some time left to make it.
-        }
-        else
-        {
-            ROS_WARN("Aborting because we wound up outside the goal constraints");
-            active_goal_.setAborted();
-            has_active_goal_ = false;
-        }
-
+        ROS_WARN("Aborting because we wound up outside the goal constraints");
+        active_goal_.setAborted();
+        has_active_goal_ = false;
     }
 }
 
 
 int main(int argc, char** argv)
 {
-    ros::init(argc, argv, "joint_trajecotry_controller");
+    ros::init(argc, argv, "follow_joint_trajecotry_action_server");
     ros::NodeHandle node;
     ros::AsyncSpinner spinner(1);
     spinner.start();
 
     kinova::JointTrajectoryActionController jtac(node);
-    std::cout << "hello world!" << std::endl;
 
     ros::spin();
     return 0;

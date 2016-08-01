@@ -56,6 +56,8 @@ add_library(kinova_driver
   src/kinova_joint_angles_action.cpp
   src/kinova_fingers_action.cpp
   src/kinova_ros_types.cpp
+  src/kinova_joint_trajectory_controller.cpp
+  include/kinova_driver/kinova_joint_trajectory_controller.h
   include/kinova_driver/kinova_joint_angles_action.h
   include/kinova_driver/kinova_api.h
   include/kinova_driver/kinova_arm.h
@@ -92,6 +94,7 @@ target_link_libraries(kinova_tf_updater ${catkin_LIBRARIES})
 add_executable(kinova_interactive_control src/nodes/kinova_interactive_control.cpp)
 add_dependencies(kinova_interactive_control ${catkin_EXPORTED_TARGETS})
 target_link_libraries(kinova_interactive_control ${catkin_LIBRARIES} kinova_driver)
+
 
 #############
 ## Install ##
