@@ -28,6 +28,8 @@ private:
     ros::Subscriber sub_command_;
     ros::Publisher pub_joint_feedback_;
 
+    ros::Time previous_pub_;
+
     ros::Timer timer_update_state_;
     boost::mutex terminate_thread_mutex_;
     boost::thread* thread_update_state_;

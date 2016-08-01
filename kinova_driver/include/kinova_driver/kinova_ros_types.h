@@ -110,6 +110,7 @@ class KinovaAngles : public AngularInfo
 
     kinova_msgs::JointAngles constructAnglesMsg();
     bool isCloseToOther(const KinovaAngles &, float tolerance) const;
+    void applyShortestAngleDistanceTo(KinovaAngles target_angle);
 };
 
 

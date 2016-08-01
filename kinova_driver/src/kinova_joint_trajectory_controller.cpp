@@ -1,5 +1,6 @@
 #include <kinova_driver/kinova_joint_trajectory_controller.h>
 #include <std_msgs/Float64.h>
+#include <angles/angles.h>
 
 using namespace kinova;
 
@@ -138,29 +139,30 @@ void JointTrajectoryController::commandCB(const trajectory_msgs::JointTrajectory
     if(command_abort)
         return;
 
+    KinovaAngles traj_angle_command; // extract angle command from trajectory received.
+    KinovaAngles kinova_angle_command; // store angle command sent to robot, with shortest distance
+    // initial kinova_angle_command as current position, before find shortest distance.
+   kinova_comm_.getJointAngles(kinova_angle_command);
 
-    KinovaAngles kinova_angle;
     for (size_t i = 0; i<traj_command_points_.size(); i++)
     {
-        kinova_angle.Actuator1 = traj_command_points_[i].positions[0];
-        kinova_angle.Actuator2 = traj_command_points_[i].positions[1];
-        kinova_angle.Actuator3 = traj_command_points_[i].positions[2];
-        kinova_angle.Actuator4 = traj_command_points_[i].positions[3];
-        kinova_angle.Actuator5 = traj_command_points_[i].positions[4];
-        kinova_angle.Actuator6 = traj_command_points_[i].positions[5];
+        traj_angle_command.Actuator1 = traj_command_points_[i].positions[0];
+        traj_angle_command.Actuator2 = traj_command_points_[i].positions[1];
+        traj_angle_command.Actuator3 = traj_command_points_[i].positions[2];
+        traj_angle_command.Actuator4 = traj_command_points_[i].positions[3];
+        traj_angle_command.Actuator5 = traj_command_points_[i].positions[4];
+        traj_angle_command.Actuator6 = traj_command_points_[i].positions[5];
+
+        // the kinova_angle_command is updated to reach corresponding joint of traj_angle_command.
+        // every iteration, the shortest distance will be calculated w.r.t. previous kinova_angle_command.
+        kinova_angle_command.applyShortestAngleDistanceTo(traj_angle_command);
 
         ROS_WARN_STREAM("add kinova_angle " << i << " to trajectory list: ");
-        kinova_comm_.printAngles(kinova_angle);
+        kinova_comm_.printAngles(kinova_angle_command);
 
         // add joint_angles to Trajectory list
-        kinova_comm_.setJointAngles(kinova_angle, 0, false);
-
+        kinova_comm_.setJointAngles(kinova_angle_command, 0, false);
     }
-
-
-
-
-
 }
 
 
@@ -170,7 +172,8 @@ void JointTrajectoryController::update_state_timer(const ros::TimerEvent&)
 
 void JointTrajectoryController::update_state()
 {
-    ros::Rate update_rate(0.1);
+    ros::Rate update_rate(10);
+    previous_pub_ = ros::Time::now();
 
     while (nh_.ok())
     {
@@ -220,7 +223,9 @@ void JointTrajectoryController::update_state()
             traj_feedback_msg_.error.positions[j] = traj_feedback_msg_.actual.positions[j] - traj_feedback_msg_.desired.positions[j];
         }
 
+//        ROS_WARN_STREAM("I'm publishing after second: " << (ros::Time::now() - previous_pub_).toSec());
         pub_joint_feedback_.publish(traj_feedback_msg_);
+        previous_pub_ = ros::Time::now();
         update_rate.sleep();
 
     }

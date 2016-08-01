@@ -492,6 +492,16 @@ bool KinovaAngles::isCloseToOther(const KinovaAngles &other, float tolerance) co
     return status;
 }
 
+void KinovaAngles::applyShortestAngleDistanceTo(KinovaAngles target_angle)
+{
+    Actuator1 += angles::shortest_angular_distance(Actuator1, target_angle.Actuator1);
+    Actuator2 += angles::shortest_angular_distance(Actuator2, target_angle.Actuator2);
+    Actuator3 += angles::shortest_angular_distance(Actuator3, target_angle.Actuator3);
+    Actuator4 += angles::shortest_angular_distance(Actuator4, target_angle.Actuator4);
+    Actuator5 += angles::shortest_angular_distance(Actuator5, target_angle.Actuator5);
+    Actuator6 += angles::shortest_angular_distance(Actuator6, target_angle.Actuator6);
+}
+
 
 FingerAngles::FingerAngles(const kinova_msgs::FingerPosition &position)
 {
