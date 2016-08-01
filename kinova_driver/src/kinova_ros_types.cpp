@@ -494,12 +494,18 @@ bool KinovaAngles::isCloseToOther(const KinovaAngles &other, float tolerance) co
 
 void KinovaAngles::applyShortestAngleDistanceTo(KinovaAngles target_angle)
 {
-    Actuator1 += angles::shortest_angular_distance(Actuator1, target_angle.Actuator1);
-    Actuator2 += angles::shortest_angular_distance(Actuator2, target_angle.Actuator2);
-    Actuator3 += angles::shortest_angular_distance(Actuator3, target_angle.Actuator3);
-    Actuator4 += angles::shortest_angular_distance(Actuator4, target_angle.Actuator4);
-    Actuator5 += angles::shortest_angular_distance(Actuator5, target_angle.Actuator5);
-    Actuator6 += angles::shortest_angular_distance(Actuator6, target_angle.Actuator6);
+    using namespace angles;
+    Actuator1 = to_degrees( from_degrees(Actuator1) + shortest_angular_distance( from_degrees(Actuator1), from_degrees(target_angle.Actuator1) ) );
+
+    Actuator2 = to_degrees( from_degrees(Actuator2) + shortest_angular_distance( from_degrees(Actuator2), from_degrees(target_angle.Actuator2) ) );
+
+    Actuator3 = to_degrees( from_degrees(Actuator3) + shortest_angular_distance( from_degrees(Actuator3), from_degrees(target_angle.Actuator3) ) );
+
+    Actuator4 = to_degrees( from_degrees(Actuator4) + shortest_angular_distance( from_degrees(Actuator4), from_degrees(target_angle.Actuator4) ) );
+
+    Actuator5 = to_degrees( from_degrees(Actuator5) + shortest_angular_distance( from_degrees(Actuator5), from_degrees(target_angle.Actuator5) ) );
+
+    Actuator6 = to_degrees( from_degrees(Actuator6) + shortest_angular_distance( from_degrees(Actuator6), from_degrees(target_angle.Actuator6) ) );
 }
 
 
