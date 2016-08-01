@@ -19,6 +19,7 @@ add_message_files(
   JointVelocity.msg
   KinovaPose.msg
   PoseVelocity.msg
+  DebugMsg.msg
 )
 
 add_service_files(
@@ -28,6 +29,7 @@ add_service_files(
   HomeArm.srv
   SetForceControlParams.srv
   SetEndEffectorOffset.srv
+  DebugAPI.srv
 )
 
 add_action_files(DIRECTORY action

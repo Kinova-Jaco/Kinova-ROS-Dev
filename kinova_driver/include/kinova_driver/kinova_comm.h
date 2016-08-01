@@ -68,6 +68,7 @@ class KinovaComm
     void stopAPI();
     void startAPI();
     bool isStopped();
+    std::string debugAPI(std::string &input);
     void startForceControl();
     void stopForceControl();
     int robotType() const;
