@@ -30,10 +30,12 @@ JointTrajectoryController::JointTrajectoryController(kinova::KinovaComm &kinova_
 
     thread_update_state_ = new boost::thread(boost::bind(&JointTrajectoryController::update_state, this));
 
+    traj_feedback_msg_.joint_names.resize(joint_names_.size());
     traj_feedback_msg_.desired.positions.resize(joint_names_.size());
     traj_feedback_msg_.actual.positions.resize(joint_names_.size());
     traj_feedback_msg_.actual.velocities.resize(joint_names_.size());
     traj_feedback_msg_.error.positions.resize(joint_names_.size());
+    traj_feedback_msg_.joint_names = joint_names_;
 }
 
 JointTrajectoryController::~JointTrajectoryController()
@@ -146,12 +148,12 @@ void JointTrajectoryController::commandCB(const trajectory_msgs::JointTrajectory
 
     for (size_t i = 0; i<traj_command_points_.size(); i++)
     {
-        traj_angle_command.Actuator1 = traj_command_points_[i].positions[0];
-        traj_angle_command.Actuator2 = traj_command_points_[i].positions[1];
-        traj_angle_command.Actuator3 = traj_command_points_[i].positions[2];
-        traj_angle_command.Actuator4 = traj_command_points_[i].positions[3];
-        traj_angle_command.Actuator5 = traj_command_points_[i].positions[4];
-        traj_angle_command.Actuator6 = traj_command_points_[i].positions[5];
+        traj_angle_command.Actuator1 = traj_command_points_[i].positions[0] *180/M_PI;
+        traj_angle_command.Actuator2 = traj_command_points_[i].positions[1] *180/M_PI;
+        traj_angle_command.Actuator3 = traj_command_points_[i].positions[2] *180/M_PI;
+        traj_angle_command.Actuator4 = traj_command_points_[i].positions[3] *180/M_PI;
+        traj_angle_command.Actuator5 = traj_command_points_[i].positions[4] *180/M_PI;
+        traj_angle_command.Actuator6 = traj_command_points_[i].positions[5] *180/M_PI;
 
         // the kinova_angle_command is updated to reach corresponding joint of traj_angle_command.
         // every iteration, the shortest distance will be calculated w.r.t. previous kinova_angle_command.

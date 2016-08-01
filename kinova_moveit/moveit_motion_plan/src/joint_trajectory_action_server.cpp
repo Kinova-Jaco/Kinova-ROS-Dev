@@ -108,7 +108,6 @@ void JointTrajectoryActionController::watchdog(const ros::TimerEvent &e)
                      (now - last_controller_state_->header.stamp).toSec());
         }
 
-//        if (false)
         if (should_abort)
         {
             // Stops the controller.
@@ -192,76 +191,52 @@ void JointTrajectoryActionController::controllerStateCB(const control_msgs::Foll
         return;
     if (current_traj_.points.empty())
         return;
-    if (now < current_traj_.header.stamp + current_traj_.points[0].time_from_start)
+
+//    ROS_WARN_STREAM_ONCE("now is: " << now << "; current_traj_.header.stamp is: " << current_traj_.header.stamp <<    "; current_traj_.points[0].time_from_start is: " << current_traj_.points[0].time_from_start << "; msg->header.stamp is: " << msg->header.stamp);
+//    if (now < current_traj_.header.stamp + current_traj_.points[0].time_from_start)
+    if (now < msg->header.stamp + current_traj_.points[0].time_from_start)
+    {
         return;
+    }
 
     if (!setsEqual(joint_names_, msg->joint_names))
     {
-        ROS_ERROR("Joint names from the controller don't match our joint names.");
+        ROS_ERROR_ONCE("Joint names from the controller don't match our joint names.");
         return;
     }
 
     int last = current_traj_.points.size() - 1;
-    ros::Time end_time = current_traj_.header.stamp + current_traj_.points[last].time_from_start;
+    ros::Time end_time = msg->header.stamp + current_traj_.points[last].time_from_start;
 
-    // Verifies that the controller has stayed within the trajectory constraints.
-
-    if (now < end_time)
+    // Checks that we have ended inside the goal constraints
+    bool inside_goal_constraints = true;
+    for (size_t i = 0; i < msg->joint_names.size() && inside_goal_constraints; ++i)
     {
-        // Checks that the controller is inside the trajectory constraints.
-        for (size_t i = 0; i < msg->joint_names.size(); ++i)
+        double abs_error = fabs(msg->error.positions[i]);
+        double goal_constraint = goal_constraints_[msg->joint_names[i]];
+        if (goal_constraint >= 0 && abs_error > goal_constraint)
+            inside_goal_constraints = false;
+        // It's important to be stopped if that's desired.
+        if ( !(msg->desired.velocities.empty()) && (fabs(msg->desired.velocities[i]) < 1e-6) )
         {
-            double abs_error = fabs(msg->error.positions[i]);
-            double constraint = trajectory_constraints_[msg->joint_names[i]];
-            if (constraint >= 0 && abs_error > constraint)
-            {
-                // Stops the controller.
-                trajectory_msgs::JointTrajectory empty;
-                empty.joint_names = joint_names_;
-                pub_controller_command_.publish(empty);
-
-                active_goal_.setAborted();
-                has_active_goal_ = false;
-                ROS_WARN("Aborting because we would up outside the trajectory constraints");
-                return;
-            }
+            if (fabs(msg->actual.velocities[i]) > stopped_velocity_tolerance_)
+                inside_goal_constraints = false;
         }
+    }
+    if (inside_goal_constraints)
+    {
+        active_goal_.setSucceeded();
+        has_active_goal_ = false;
+    }
+    else if (now < end_time + ros::Duration(goal_time_constraint_))
+    {
+        // Still have some time left to make it.
     }
     else
     {
-        // Checks that we have ended inside the goal constraints
-        bool inside_goal_constraints = true;
-        for (size_t i = 0; i < msg->joint_names.size() && inside_goal_constraints; ++i)
-        {
-            double abs_error = fabs(msg->error.positions[i]);
-            double goal_constraint = goal_constraints_[msg->joint_names[i]];
-            if (goal_constraint >= 0 && abs_error > goal_constraint)
-                inside_goal_constraints = false;
-
-            // It's important to be stopped if that's desired.
-            if (fabs(msg->desired.velocities[i]) < 1e-6)
-            {
-                if (fabs(msg->actual.velocities[i]) > stopped_velocity_tolerance_)
-                    inside_goal_constraints = false;
-            }
-        }
-
-        if (inside_goal_constraints)
-        {
-            active_goal_.setSucceeded();
-            has_active_goal_ = false;
-        }
-        else if (now < end_time + ros::Duration(goal_time_constraint_))
-        {
-            // Still have some time left to make it.
-        }
-        else
-        {
-            ROS_WARN("Aborting because we wound up outside the goal constraints");
-            active_goal_.setAborted();
-            has_active_goal_ = false;
-        }
-
+        ROS_WARN("Aborting because we wound up outside the goal constraints");
+        active_goal_.setAborted();
+        has_active_goal_ = false;
     }
 }
 
