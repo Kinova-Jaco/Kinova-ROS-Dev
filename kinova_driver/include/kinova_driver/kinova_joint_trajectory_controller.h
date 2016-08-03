@@ -6,6 +6,7 @@
 #include <control_msgs/FollowJointTrajectoryAction.h>
 #include <sensor_msgs/JointState.h>
 #include <std_msgs/Duration.h>
+#include <kinova_msgs/JointVelocity.h>
 #include <boost/thread.hpp>
 
 #include "kinova_ros_types.h"
@@ -27,6 +28,7 @@ private:
 
     ros::Subscriber sub_command_;
     ros::Publisher pub_joint_feedback_;
+    ros::Publisher pub_joint_velocity_;
 
     ros::Time previous_pub_;
 

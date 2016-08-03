@@ -21,6 +21,7 @@ JointTrajectoryController::JointTrajectoryController(kinova::KinovaComm &kinova_
     sub_command_ = nh_.subscribe("/trajectory_controller/command", 1, &JointTrajectoryController::commandCB, this);
 
     pub_joint_feedback_ = nh_.advertise<control_msgs::FollowJointTrajectoryFeedback>("/trajectory_controller/state", 1);
+    pub_joint_velocity_ = pn.advertise<kinova_msgs::JointVelocity>("in/joint_velocity", 2);
 
     traj_frame_id_ = "root";
     number_joint_ = 6;
@@ -61,6 +62,7 @@ JointTrajectoryController::~JointTrajectoryController()
 
     sub_command_.shutdown();
     pub_joint_feedback_.shutdown();
+    pub_joint_velocity_.shutdown();
 
     timer_update_state_.stop();
     thread_update_state_->join();
@@ -73,8 +75,6 @@ JointTrajectoryController::~JointTrajectoryController()
 void JointTrajectoryController::commandCB(const trajectory_msgs::JointTrajectoryConstPtr &traj_msg)
 {
     ROS_DEBUG_STREAM_ONCE("Get in: " << __PRETTY_FUNCTION__);
-
-ROS_DEBUG_STREAM("traj_msg->points[3].velocities[0] IS: " << traj_msg->points[3].velocities[0]);
 
     bool command_abort = false;
 
@@ -116,16 +116,6 @@ ROS_DEBUG_STREAM("traj_msg->points[3].velocities[0] IS: " << traj_msg->points[3]
         }
     }
 
-    // find out the duration of each segment in the traje
-    std::vector<double> durations(number_joint_, 0.0); // computed by time_from_start
-    double trajectory_duration = traj_command_points_[0].time_from_start.toSec();
-
-    durations[0] = trajectory_duration;
-    for (int i = 1; i<number_joint_; i++)
-    {
-        durations[i] = (traj_command_points_[i].time_from_start - traj_command_points_[i-1].time_from_start).toSec();
-        trajectory_duration += durations[i];
-    }
 
     // check msg validation
     for (size_t j = 0; j<traj_command_points_.size(); j++)
@@ -147,9 +137,9 @@ ROS_DEBUG_STREAM("traj_msg->points[3].velocities[0] IS: " << traj_msg->points[3]
 
 
         // if velocity provided, size match
-        if (!traj_command_points_[j].velocities.empty() && traj_command_points_[j].positions.size() != number_joint_)
+        if (!traj_command_points_[j].velocities.empty() && traj_command_points_[j].velocities.size() != number_joint_)
         {
-            ROS_ERROR_STREAM("Positions at point " << j << " has size " << traj_command_points_[j].positions.size() << " in trajectory command, which does not match joint number! ");
+            ROS_ERROR_STREAM("Velocities at point " << j << " has size " << traj_command_points_[j].velocities.size() << " in trajectory command, which does not match joint number! ");
             command_abort = true;
             break;
         }
@@ -158,36 +148,64 @@ ROS_DEBUG_STREAM("traj_msg->points[3].velocities[0] IS: " << traj_msg->points[3]
     if(command_abort)
         return;
 
-    KinovaAngles traj_angle_command; // extract angle command from trajectory received.
-    KinovaAngles kinova_angle_command; // store angle command sent to robot, with shortest distance
-    kinova_angle_command.InitStruct(); // set velocity command to zeros;
+    // store angle velocity command sent to robot
+    std::vector<KinovaAngles> kinova_angle_command;
+    kinova_angle_command.resize(traj_command_points_.size());
 
     for (size_t i = 0; i<traj_command_points_.size(); i++)
     {
-        traj_angle_command.Actuator1 = traj_command_points_[i].velocities[0] *180/M_PI;
-        traj_angle_command.Actuator2 = traj_command_points_[i].velocities[1] *180/M_PI;
-        traj_angle_command.Actuator3 = traj_command_points_[i].velocities[2] *180/M_PI;
-        traj_angle_command.Actuator4 = traj_command_points_[i].velocities[3] *180/M_PI;
-        traj_angle_command.Actuator5 = traj_command_points_[i].velocities[4] *180/M_PI;
-        traj_angle_command.Actuator6 = traj_command_points_[i].velocities[5] *180/M_PI;
+        kinova_angle_command[i].InitStruct(); // initial joint velocity to zeros.
 
-        // no need for: kinova_angle_command.applyShortestAngleDistanceTo(traj_angle_command);
-        kinova_angle_command = traj_angle_command;
-
-        ROS_INFO_STREAM("add kinova_angle_command " << i << " to trajectory list: ");
-        kinova_comm_.printAngles(kinova_angle_command);
-
-        // add joint_angles to Trajectory list
-        //        kinova_comm_.setJointAngles(kinova_angle_command, 0, false);
-        kinova_comm_.setJointVelocities(kinova_angle_command);
+        kinova_angle_command[i].Actuator1 = traj_command_points_[i].velocities[0] *180/M_PI;
+        kinova_angle_command[i].Actuator2 = traj_command_points_[i].velocities[1] *180/M_PI;
+        kinova_angle_command[i].Actuator3 = traj_command_points_[i].velocities[2] *180/M_PI;
+        kinova_angle_command[i].Actuator4 = traj_command_points_[i].velocities[3] *180/M_PI;
+        kinova_angle_command[i].Actuator5 = traj_command_points_[i].velocities[4] *180/M_PI;
+        kinova_angle_command[i].Actuator6 = traj_command_points_[i].velocities[5] *180/M_PI;
     }
 
 
-    //    while(traj_command_points_.size()-- >= 0)
-    //    {
-    //        kinova_comm_.setJointVelocities(kinova_angle_command, 0, false);
-    //        ros::Duration(time_from_start_ - previous_time_from_start_).sleep();
-    //    }
+    // find out the duration of each segment in the traje
+    std::vector<double> durations(traj_command_points_.size(), 0.0); // computed by time_from_start
+    double trajectory_duration = traj_command_points_[0].time_from_start.toSec();
+
+    durations[0] = trajectory_duration;
+    ROS_DEBUG_STREAM("durationsn 0 IS: " << durations[0]);
+
+    for (int i = 1; i<traj_command_points_.size(); i++)
+    {
+        durations[i] = (traj_command_points_[i].time_from_start - traj_command_points_[i-1].time_from_start).toSec();
+        trajectory_duration += durations[i];
+        ROS_DEBUG_STREAM("durations " << i << " is: " << durations[i]);
+    }
+
+    // send out each velocity command with corresponding duration delay.
+    int index = 0;
+    ros::Rate pub_rate = 100;
+    ros::Time process_time = ros::Time::now();
+    kinova_msgs::JointVelocity joint_velocity_msg;
+    while(index <=  kinova_angle_command.size() && ros::ok())
+    {
+        // moving to next point when reach its duration.
+        if( (ros::Time::now() - process_time).toSec() >= durations[index])
+        {
+            process_time = ros::Time::now();
+            ROS_INFO_STREAM("Start move to point " << index << ", as first(start) place is point 0.");
+            index++;
+        }
+
+//        kinova_comm_.printAngles(kinova_angle_command[index]);
+
+        joint_velocity_msg.joint1 = kinova_angle_command[index].Actuator1;
+        joint_velocity_msg.joint2 = kinova_angle_command[index].Actuator2;
+        joint_velocity_msg.joint3 = kinova_angle_command[index].Actuator3;
+        joint_velocity_msg.joint4 = kinova_angle_command[index].Actuator4;
+        joint_velocity_msg.joint5 = kinova_angle_command[index].Actuator5;
+        joint_velocity_msg.joint6 = kinova_angle_command[index].Actuator6;
+
+        pub_joint_velocity_.publish(joint_velocity_msg);
+        pub_rate.sleep();
+    }
 
     ROS_DEBUG_STREAM_ONCE("Get out: " << __PRETTY_FUNCTION__);
 }
