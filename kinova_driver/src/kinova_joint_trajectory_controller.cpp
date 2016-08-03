@@ -1,6 +1,7 @@
 #include <kinova_driver/kinova_joint_trajectory_controller.h>
 #include <std_msgs/Float64.h>
 #include <angles/angles.h>
+#include <ros/console.h>
 
 using namespace kinova;
 
@@ -8,7 +9,14 @@ JointTrajectoryController::JointTrajectoryController(kinova::KinovaComm &kinova_
     kinova_comm_(kinova_comm),
     nh_(n)
 {
+    ROS_DEBUG_STREAM_ONCE("Get in: " << __PRETTY_FUNCTION__);
+
     ros::NodeHandle pn("~");
+
+    // Display debug information in teminal
+    if( ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug) ) {
+        ros::console::notifyLoggerLevelsChanged();
+    }
 
     sub_command_ = nh_.subscribe("/trajectory_controller/command", 1, &JointTrajectoryController::commandCB, this);
 
@@ -32,14 +40,20 @@ JointTrajectoryController::JointTrajectoryController(kinova::KinovaComm &kinova_
 
     traj_feedback_msg_.joint_names.resize(joint_names_.size());
     traj_feedback_msg_.desired.positions.resize(joint_names_.size());
+    traj_feedback_msg_.desired.velocities.resize(joint_names_.size());
     traj_feedback_msg_.actual.positions.resize(joint_names_.size());
     traj_feedback_msg_.actual.velocities.resize(joint_names_.size());
     traj_feedback_msg_.error.positions.resize(joint_names_.size());
+    traj_feedback_msg_.error.velocities.resize(joint_names_.size());
     traj_feedback_msg_.joint_names = joint_names_;
+
+    ROS_DEBUG_STREAM_ONCE("Get out: " << __PRETTY_FUNCTION__);
 }
 
 JointTrajectoryController::~JointTrajectoryController()
 {
+    ROS_DEBUG_STREAM_ONCE("Get in: " << __PRETTY_FUNCTION__);
+    ROS_WARN("destruction entered!");
     {
         boost::mutex::scoped_lock terminate_lock(terminate_thread_mutex_);
         terminate_thread_ = true;
@@ -51,13 +65,16 @@ JointTrajectoryController::~JointTrajectoryController()
     timer_update_state_.stop();
     thread_update_state_->join();
     delete thread_update_state_;
-
+    ROS_DEBUG_STREAM_ONCE("Get out: " << __PRETTY_FUNCTION__);
 }
 
 
 
 void JointTrajectoryController::commandCB(const trajectory_msgs::JointTrajectoryConstPtr &traj_msg)
 {
+    ROS_DEBUG_STREAM_ONCE("Get in: " << __PRETTY_FUNCTION__);
+
+ROS_DEBUG_STREAM("traj_msg->points[3].velocities[0] IS: " << traj_msg->points[3].velocities[0]);
 
     bool command_abort = false;
 
@@ -77,7 +94,6 @@ void JointTrajectoryController::commandCB(const trajectory_msgs::JointTrajectory
 
     traj_command_points_ = traj_msg->points;
     ROS_INFO_STREAM("Trajectory controller Receive trajectory with points number: " << traj_command_points_.size());
-
 
     // Map the index in joint_names and the msg
     std::vector<int> lookup(number_joint_, -1);
@@ -129,6 +145,7 @@ void JointTrajectoryController::commandCB(const trajectory_msgs::JointTrajectory
             break;
         }
 
+
         // if velocity provided, size match
         if (!traj_command_points_[j].velocities.empty() && traj_command_points_[j].positions.size() != number_joint_)
         {
@@ -143,28 +160,36 @@ void JointTrajectoryController::commandCB(const trajectory_msgs::JointTrajectory
 
     KinovaAngles traj_angle_command; // extract angle command from trajectory received.
     KinovaAngles kinova_angle_command; // store angle command sent to robot, with shortest distance
-    // initial kinova_angle_command as current position, before find shortest distance.
-   kinova_comm_.getJointAngles(kinova_angle_command);
+    kinova_angle_command.InitStruct(); // set velocity command to zeros;
 
     for (size_t i = 0; i<traj_command_points_.size(); i++)
     {
-        traj_angle_command.Actuator1 = traj_command_points_[i].positions[0] *180/M_PI;
-        traj_angle_command.Actuator2 = traj_command_points_[i].positions[1] *180/M_PI;
-        traj_angle_command.Actuator3 = traj_command_points_[i].positions[2] *180/M_PI;
-        traj_angle_command.Actuator4 = traj_command_points_[i].positions[3] *180/M_PI;
-        traj_angle_command.Actuator5 = traj_command_points_[i].positions[4] *180/M_PI;
-        traj_angle_command.Actuator6 = traj_command_points_[i].positions[5] *180/M_PI;
+        traj_angle_command.Actuator1 = traj_command_points_[i].velocities[0] *180/M_PI;
+        traj_angle_command.Actuator2 = traj_command_points_[i].velocities[1] *180/M_PI;
+        traj_angle_command.Actuator3 = traj_command_points_[i].velocities[2] *180/M_PI;
+        traj_angle_command.Actuator4 = traj_command_points_[i].velocities[3] *180/M_PI;
+        traj_angle_command.Actuator5 = traj_command_points_[i].velocities[4] *180/M_PI;
+        traj_angle_command.Actuator6 = traj_command_points_[i].velocities[5] *180/M_PI;
 
-        // the kinova_angle_command is updated to reach corresponding joint of traj_angle_command.
-        // every iteration, the shortest distance will be calculated w.r.t. previous kinova_angle_command.
-        kinova_angle_command.applyShortestAngleDistanceTo(traj_angle_command);
+        // no need for: kinova_angle_command.applyShortestAngleDistanceTo(traj_angle_command);
+        kinova_angle_command = traj_angle_command;
 
-        ROS_WARN_STREAM("add kinova_angle " << i << " to trajectory list: ");
+        ROS_INFO_STREAM("add kinova_angle_command " << i << " to trajectory list: ");
         kinova_comm_.printAngles(kinova_angle_command);
 
         // add joint_angles to Trajectory list
-        kinova_comm_.setJointAngles(kinova_angle_command, 0, false);
+        //        kinova_comm_.setJointAngles(kinova_angle_command, 0, false);
+        kinova_comm_.setJointVelocities(kinova_angle_command);
     }
+
+
+    //    while(traj_command_points_.size()-- >= 0)
+    //    {
+    //        kinova_comm_.setJointVelocities(kinova_angle_command, 0, false);
+    //        ros::Duration(time_from_start_ - previous_time_from_start_).sleep();
+    //    }
+
+    ROS_DEBUG_STREAM_ONCE("Get out: " << __PRETTY_FUNCTION__);
 }
 
 
@@ -174,9 +199,10 @@ void JointTrajectoryController::update_state_timer(const ros::TimerEvent&)
 
 void JointTrajectoryController::update_state()
 {
+    ROS_DEBUG_STREAM_ONCE("Get in: " << __PRETTY_FUNCTION__);
+
     ros::Rate update_rate(10);
     previous_pub_ = ros::Time::now();
-
     while (nh_.ok())
     {
         // check if terminate command is sent from main thread
@@ -190,7 +216,6 @@ void JointTrajectoryController::update_state()
 
         traj_feedback_msg_.header.frame_id = traj_frame_id_;
         traj_feedback_msg_.header.stamp = ros::Time::now();
-
         KinovaAngles current_joint_angles;
         KinovaAngles current_joint_velocity;
         AngularPosition current_joint_command;
@@ -199,12 +224,13 @@ void JointTrajectoryController::update_state()
         kinova_comm_.getJointAngles(current_joint_angles);
         kinova_comm_.getJointVelocities(current_joint_velocity);
 
-        traj_feedback_msg_.desired.positions[0] = current_joint_command.Actuators.Actuator1 *M_PI/180;
-        traj_feedback_msg_.desired.positions[1] = current_joint_command.Actuators.Actuator2 *M_PI/180;
-        traj_feedback_msg_.desired.positions[2] = current_joint_command.Actuators.Actuator3 *M_PI/180;
-        traj_feedback_msg_.desired.positions[3] = current_joint_command.Actuators.Actuator4 *M_PI/180;
-        traj_feedback_msg_.desired.positions[4] = current_joint_command.Actuators.Actuator5 *M_PI/180;
-        traj_feedback_msg_.desired.positions[5] = current_joint_command.Actuators.Actuator6 *M_PI/180;
+
+        traj_feedback_msg_.desired.velocities[0] = current_joint_command.Actuators.Actuator1 *M_PI/180;
+        traj_feedback_msg_.desired.velocities[1] = current_joint_command.Actuators.Actuator2 *M_PI/180;
+        traj_feedback_msg_.desired.velocities[2] = current_joint_command.Actuators.Actuator3 *M_PI/180;
+        traj_feedback_msg_.desired.velocities[3] = current_joint_command.Actuators.Actuator4 *M_PI/180;
+        traj_feedback_msg_.desired.velocities[4] = current_joint_command.Actuators.Actuator5 *M_PI/180;
+        traj_feedback_msg_.desired.velocities[5] = current_joint_command.Actuators.Actuator6 *M_PI/180;
 
         traj_feedback_msg_.actual.positions[0] = current_joint_angles.Actuator1 *M_PI/180;
         traj_feedback_msg_.actual.positions[1] = current_joint_angles.Actuator2 *M_PI/180;
@@ -222,14 +248,13 @@ void JointTrajectoryController::update_state()
 
         for (size_t j = 0; j<joint_names_.size(); j++)
         {
-            traj_feedback_msg_.error.positions[j] = traj_feedback_msg_.actual.positions[j] - traj_feedback_msg_.desired.positions[j];
+            traj_feedback_msg_.error.velocities[j] = traj_feedback_msg_.actual.velocities[j] - traj_feedback_msg_.desired.velocities[j];
         }
 
-//        ROS_WARN_STREAM("I'm publishing after second: " << (ros::Time::now() - previous_pub_).toSec());
+        //        ROS_WARN_STREAM("I'm publishing after second: " << (ros::Time::now() - previous_pub_).toSec());
         pub_joint_feedback_.publish(traj_feedback_msg_);
         previous_pub_ = ros::Time::now();
         update_rate.sleep();
-
     }
-
+    ROS_DEBUG_STREAM_ONCE("Get out: " << __PRETTY_FUNCTION__);
 }
