@@ -6,6 +6,7 @@
 #include <control_msgs/FollowJointTrajectoryAction.h>
 #include <sensor_msgs/JointState.h>
 #include <std_msgs/Duration.h>
+#include <kinova_msgs/JointVelocity.h>
 #include <boost/thread.hpp>
 
 #include "kinova_ros_types.h"
@@ -27,10 +28,12 @@ private:
 
     ros::Subscriber sub_command_;
     ros::Publisher pub_joint_feedback_;
+    ros::Publisher pub_joint_velocity_;
 
     ros::Time previous_pub_;
+    ros::Time time_pub_joint_vel_;
 
-    ros::Timer timer_update_state_;
+    ros::Timer timer_pub_joint_vel_;
     boost::mutex terminate_thread_mutex_;
     boost::thread* thread_update_state_;
     bool terminate_thread_;
@@ -47,7 +50,11 @@ private:
     std::vector<trajectory_msgs::JointTrajectoryPoint> traj_command_points_;
     control_msgs::FollowJointTrajectoryFeedback traj_feedback_msg_;
 
+    // stores the command to send to robot, in Kinova type (KinovaAngles)
+    std::vector<KinovaAngles> kinova_angle_command_;
+
     uint number_joint_;
+    int traj_command_points_index_;
     std::vector<std::string> joint_names_;
     std::string prefix_;
 
@@ -64,8 +71,10 @@ private:
     void commandCB(const trajectory_msgs::JointTrajectoryConstPtr &traj_msg);
 
     // reflash the robot state and publish the joint state: either by timer or thread
-    void update_state_timer(const ros::TimerEvent&); // by timer
     void update_state(); // by thread
+
+    void pub_joint_vel(const ros::TimerEvent&); // by timer
+    int test;
 
 };
 

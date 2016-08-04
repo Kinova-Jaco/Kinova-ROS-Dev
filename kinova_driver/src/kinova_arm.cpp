@@ -148,7 +148,8 @@ KinovaArm::KinovaArm(KinovaComm &arm, const ros::NodeHandle &nodeHandle, const s
     cartesian_velocity_subscriber_ = node_handle_.subscribe("in/cartesian_velocity", 1,
                                                           &KinovaArm::cartesianVelocityCallback, this);
 
-    node_handle_.param<double>("status_interval_seconds", status_interval_seconds_, 0.01);
+    // update state too fast (eg: status_interval_seconds_= 0.01), will affect subscribers (slow down joint velocity control: joint_velocity_subscriber_).
+    node_handle_.param<double>("status_interval_seconds", status_interval_seconds_, 0.1);
 
     // Depending on the API version, the arm might return velocities in the
     // 0..360 range (0..180 for positive values, 181..360 for negative ones).
@@ -391,14 +392,14 @@ void KinovaArm::publishJointAngles(void)
         joint_state.velocity[5] = current_vels.Actuator6;
     }
 
-    ROS_DEBUG_THROTTLE(0.1,
-                       "Raw joint velocities: %f %f %f %f %f %f",
-                       current_vels.Actuator1,
-                       current_vels.Actuator2,
-                       current_vels.Actuator3,
-                       current_vels.Actuator4,
-                       current_vels.Actuator5,
-                       current_vels.Actuator6);
+//    ROS_DEBUG_THROTTLE(0.1,
+//                       "Raw joint velocities: %f %f %f %f %f %f",
+//                       current_vels.Actuator1,
+//                       current_vels.Actuator2,
+//                       current_vels.Actuator3,
+//                       current_vels.Actuator4,
+//                       current_vels.Actuator5,
+//                       current_vels.Actuator6);
 
     if (convert_joint_velocities_) {
         convertKinDeg(joint_state.velocity);
