@@ -1,5 +1,4 @@
 #include <kinova_driver/kinova_joint_trajectory_controller.h>
-#include <std_msgs/Float64.h>
 #include <angles/angles.h>
 #include <ros/console.h>
 
@@ -34,7 +33,7 @@ JointTrajectoryController::JointTrajectoryController(kinova::KinovaComm &kinova_
     }
     std::cout << std::endl;
 
-    timer_update_state_ = nh_.createTimer(ros::Duration(0.1), &JointTrajectoryController::update_state_timer, this);
+    timer_pub_joint_vel_ = nh_.createTimer(ros::Duration(0.01), &JointTrajectoryController::pub_joint_vel, this, false, false);
     terminate_thread_ = false;
 
     thread_update_state_ = new boost::thread(boost::bind(&JointTrajectoryController::update_state, this));
@@ -47,6 +46,9 @@ JointTrajectoryController::JointTrajectoryController(kinova::KinovaComm &kinova_
     traj_feedback_msg_.error.positions.resize(joint_names_.size());
     traj_feedback_msg_.error.velocities.resize(joint_names_.size());
     traj_feedback_msg_.joint_names = joint_names_;
+
+    // counter in the timer to publish joint velocity command: pub_joint_vel()
+    traj_command_points_index_ = 0;
 
     ROS_DEBUG_STREAM_ONCE("Get out: " << __PRETTY_FUNCTION__);
 }
@@ -64,9 +66,10 @@ JointTrajectoryController::~JointTrajectoryController()
     pub_joint_feedback_.shutdown();
     pub_joint_velocity_.shutdown();
 
-    timer_update_state_.stop();
+    timer_pub_joint_vel_.stop();
     thread_update_state_->join();
     delete thread_update_state_;
+
     ROS_DEBUG_STREAM_ONCE("Get out: " << __PRETTY_FUNCTION__);
 }
 
@@ -116,7 +119,6 @@ void JointTrajectoryController::commandCB(const trajectory_msgs::JointTrajectory
         }
     }
 
-
     // check msg validation
     for (size_t j = 0; j<traj_command_points_.size(); j++)
     {
@@ -135,7 +137,6 @@ void JointTrajectoryController::commandCB(const trajectory_msgs::JointTrajectory
             break;
         }
 
-
         // if velocity provided, size match
         if (!traj_command_points_[j].velocities.empty() && traj_command_points_[j].velocities.size() != number_joint_)
         {
@@ -149,28 +150,27 @@ void JointTrajectoryController::commandCB(const trajectory_msgs::JointTrajectory
         return;
 
     // store angle velocity command sent to robot
-    std::vector<KinovaAngles> kinova_angle_command;
-    kinova_angle_command.resize(traj_command_points_.size());
-
+//    std::vector<KinovaAngles> kinova_angle_command;
+    kinova_angle_command_.resize(traj_command_points_.size());
     for (size_t i = 0; i<traj_command_points_.size(); i++)
     {
-        kinova_angle_command[i].InitStruct(); // initial joint velocity to zeros.
+        kinova_angle_command_[i].InitStruct(); // initial joint velocity to zeros.
 
-        kinova_angle_command[i].Actuator1 = traj_command_points_[i].velocities[0] *180/M_PI;
-        kinova_angle_command[i].Actuator2 = traj_command_points_[i].velocities[1] *180/M_PI;
-        kinova_angle_command[i].Actuator3 = traj_command_points_[i].velocities[2] *180/M_PI;
-        kinova_angle_command[i].Actuator4 = traj_command_points_[i].velocities[3] *180/M_PI;
-        kinova_angle_command[i].Actuator5 = traj_command_points_[i].velocities[4] *180/M_PI;
-        kinova_angle_command[i].Actuator6 = traj_command_points_[i].velocities[5] *180/M_PI;
+        kinova_angle_command_[i].Actuator1 = traj_command_points_[i].velocities[0] *180/M_PI;
+        kinova_angle_command_[i].Actuator2 = traj_command_points_[i].velocities[1] *180/M_PI;
+        kinova_angle_command_[i].Actuator3 = traj_command_points_[i].velocities[2] *180/M_PI;
+        kinova_angle_command_[i].Actuator4 = traj_command_points_[i].velocities[3] *180/M_PI;
+        kinova_angle_command_[i].Actuator5 = traj_command_points_[i].velocities[4] *180/M_PI;
+        kinova_angle_command_[i].Actuator6 = traj_command_points_[i].velocities[5] *180/M_PI;
     }
+    // replace last velocity command (which is zero) to previous non-zero value, trying to drive robot moving a forward to get closer to the goal.
+    kinova_angle_command_[traj_command_points_.size()-1] = kinova_angle_command_[traj_command_points_.size()-2];
 
-
-    // find out the duration of each segment in the traje
     std::vector<double> durations(traj_command_points_.size(), 0.0); // computed by time_from_start
     double trajectory_duration = traj_command_points_[0].time_from_start.toSec();
 
     durations[0] = trajectory_duration;
-    ROS_DEBUG_STREAM("durationsn 0 IS: " << durations[0]);
+    ROS_DEBUG_STREAM("durationsn 0 is: " << durations[0]);
 
     for (int i = 1; i<traj_command_points_.size(); i++)
     {
@@ -179,40 +179,58 @@ void JointTrajectoryController::commandCB(const trajectory_msgs::JointTrajectory
         ROS_DEBUG_STREAM("durations " << i << " is: " << durations[i]);
     }
 
-    // send out each velocity command with corresponding duration delay.
-    int index = 0;
-    ros::Rate pub_rate = 100;
-    ros::Time process_time = ros::Time::now();
-    kinova_msgs::JointVelocity joint_velocity_msg;
-    while(index <=  kinova_angle_command.size() && ros::ok())
-    {
-        // moving to next point when reach its duration.
-        if( (ros::Time::now() - process_time).toSec() >= durations[index])
-        {
-            process_time = ros::Time::now();
-            ROS_INFO_STREAM("Start move to point " << index << ", as first(start) place is point 0.");
-            index++;
-        }
-
-//        kinova_comm_.printAngles(kinova_angle_command[index]);
-
-        joint_velocity_msg.joint1 = kinova_angle_command[index].Actuator1;
-        joint_velocity_msg.joint2 = kinova_angle_command[index].Actuator2;
-        joint_velocity_msg.joint3 = kinova_angle_command[index].Actuator3;
-        joint_velocity_msg.joint4 = kinova_angle_command[index].Actuator4;
-        joint_velocity_msg.joint5 = kinova_angle_command[index].Actuator5;
-        joint_velocity_msg.joint6 = kinova_angle_command[index].Actuator6;
-
-        pub_joint_velocity_.publish(joint_velocity_msg);
-        pub_rate.sleep();
-    }
+    // start timer thread to publish joint velocity command
+    time_pub_joint_vel_ = ros::Time::now();
+    timer_pub_joint_vel_.start();
 
     ROS_DEBUG_STREAM_ONCE("Get out: " << __PRETTY_FUNCTION__);
 }
 
 
-void JointTrajectoryController::update_state_timer(const ros::TimerEvent&)
+void JointTrajectoryController::pub_joint_vel(const ros::TimerEvent&)
 {
+    // send out each velocity command with corresponding duration delay.
+
+    kinova_msgs::JointVelocity joint_velocity_msg;
+
+    if (traj_command_points_index_ <  kinova_angle_command_.size() && ros::ok())
+    {
+        joint_velocity_msg.joint1 = kinova_angle_command_[traj_command_points_index_].Actuator1;
+        joint_velocity_msg.joint2 = kinova_angle_command_[traj_command_points_index_].Actuator2;
+        joint_velocity_msg.joint3 = kinova_angle_command_[traj_command_points_index_].Actuator3;
+        joint_velocity_msg.joint4 = kinova_angle_command_[traj_command_points_index_].Actuator4;
+        joint_velocity_msg.joint5 = kinova_angle_command_[traj_command_points_index_].Actuator5;
+        joint_velocity_msg.joint6 = kinova_angle_command_[traj_command_points_index_].Actuator6;
+
+        // In debug: compare values with topic: follow_joint_trajectory/goal, command
+        ROS_DEBUG_STREAM( std::endl <<" joint_velocity_msg.joint1: " << joint_velocity_msg.joint1 * M_PI/180 <<
+                          std::endl <<" joint_velocity_msg.joint2: " << joint_velocity_msg.joint2 * M_PI/180 <<
+                          std::endl <<" joint_velocity_msg.joint3: " << joint_velocity_msg.joint3 * M_PI/180 <<
+                          std::endl <<" joint_velocity_msg.joint4: " << joint_velocity_msg.joint4 * M_PI/180 <<
+                          std::endl <<" joint_velocity_msg.joint5: " << joint_velocity_msg.joint5 * M_PI/180 <<
+                          std::endl <<" joint_velocity_msg.joint6: " << joint_velocity_msg.joint6 * M_PI/180 );
+
+        pub_joint_velocity_.publish(joint_velocity_msg);
+
+        if( (ros::Time::now() - time_pub_joint_vel_) >= traj_command_points_[traj_command_points_index_].time_from_start)
+        {
+            ROS_INFO_STREAM("Moved to point " << traj_command_points_index_++);
+        }
+    }
+    else // if come accross all the points, then stop timer.
+    {
+        joint_velocity_msg.joint1 = 0;
+        joint_velocity_msg.joint2 = 0;
+        joint_velocity_msg.joint3 = 0;
+        joint_velocity_msg.joint4 = 0;
+        joint_velocity_msg.joint5 = 0;
+        joint_velocity_msg.joint6 = 0;
+
+        traj_command_points_.clear();
+
+        traj_command_points_index_ = 0;
+        timer_pub_joint_vel_.stop();
+    }
 }
 
 void JointTrajectoryController::update_state()
