@@ -53,6 +53,9 @@ add_executable(joint_trajectory_action_server src/joint_trajectory_action_server
 target_link_libraries(joint_trajectory_action_server ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${kinova_driver_LIBRARIES})
 install(TARGETS joint_trajectory_action_server DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
+add_executable(work_scene src/work_scene.cpp)
+target_link_libraries(work_scene ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${kinova_driver_LIBRARIES})
+install(TARGETS work_scene DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 #get_cmake_property(_variableNames VARIABLES)
 #foreach (_variableName ${_variableNames})
