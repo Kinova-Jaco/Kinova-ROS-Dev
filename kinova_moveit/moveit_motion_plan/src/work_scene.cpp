@@ -34,10 +34,9 @@ int main(int argc, char** argv)
     shape_msgs::SolidPrimitive table;
     table.type = table.BOX;
     table.dimensions.resize(3);
-    table.dimensions[0] = 1.6;
-    table.dimensions[1] = 0.8;
-    table.dimensions[2] = 0.03;
-
+    table.dimensions[0] = 1.6; // x
+    table.dimensions[1] = 0.8; // y
+    table.dimensions[2] = 0.03; // z
     // Define table position
     geometry_msgs::Pose table_pose;
     table_pose.orientation.w = 1.0;
@@ -51,27 +50,44 @@ int main(int argc, char** argv)
     collision_objects.header.frame_id = "root";
     collision_objects.primitives.push_back(table);
     collision_objects.primitive_poses.push_back(table_pose);
-
     collision_objects.operation = collision_objects.ADD;
 
-    // Add collision objects to environment
-    ROS_INFO("Adding the collision objects to the work scene.");
+
+
+    // Define A Cylinder
+    shape_msgs::SolidPrimitive coca_can;
+    coca_can.type = coca_can.CYLINDER;
+    coca_can.dimensions.resize(2);
+    coca_can.dimensions[0] = 0.13; // height
+    coca_can.dimensions[1] = 0.036; // radius
+    // Define coca can position
+    geometry_msgs::Pose coca_can_pose;
+    coca_can_pose.orientation.w = 1.0;
+    coca_can_pose.position.x = 0.7;
+    coca_can_pose.position.y = 0.0;
+    coca_can_pose.position.z = coca_can.dimensions[0]/2;
+
+
+    // Define attached objects
+    moveit_msgs::AttachedCollisionObject attached_objects;
+    attached_objects.link_name = "j2n6s300_end_effector";
+    attached_objects.object.header.frame_id = "root";
+    attached_objects.object.id = "cylinder";
+    attached_objects.object.primitives.push_back(coca_can);
+    attached_objects.object.primitive_poses.push_back(coca_can_pose);
+    attached_objects.object.operation = attached_objects.object.ADD;
+
+
+    // Add all objects to environment
+    ROS_INFO("Adding the all objects to the work scene.");
     moveit_msgs::PlanningScene work_scene;
+    work_scene.world.collision_objects.push_back(attached_objects.object);
     work_scene.world.collision_objects.push_back(collision_objects);
     work_scene.is_diff = true;
     pub_work_scene.publish(work_scene);
     ros::Duration(1).sleep();
 
 
-//    Define attached objects
-//    moveit_msgs::AttachedCollisionObject attached_object;
-//    attached_object.link_name = "j2n6s300_end_effector";
-//    attached_object.object.header.frame_id = "j2n6s300_end_effector";
-//    attached_object.object.id = "cylinder";
-
-
     ros::shutdown();
-
-
     return 0;
 }
