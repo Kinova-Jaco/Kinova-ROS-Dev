@@ -15,6 +15,9 @@
 
   <!-- If needed, broadcast static tf for robot root -->
   
+  <!-- Run joint trajectory action server, which receives planned motion goal under "follow_joint_trajectory", and publish ROS standard trajectory via topic "command". Then for specified robot, the trajectory will be interpreted to their own joint trajectory controller -->
+  <node name="Joint_trajectory_action_server" pkg="moveit_motion_plan" type="joint_trajectory_action_server" output="screen" respawn="false" />
+
 
   <!-- Run the main MoveIt executable without trajectory execution (we do not have controllers configured by default) -->
   <include file="$(find j2n6x300_moveit_config)/launch/move_group.launch">
