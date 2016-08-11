@@ -354,14 +354,14 @@ void KinovaArm::publishJointAngles(void)
 
     if(finger_number_==2)
     {
-        joint_state.position[joint_total_number_-2] = 0;
-        joint_state.position[joint_total_number_-1] = 0;
+        joint_state.position[joint_total_number_-2] = fingers.Finger1 * finger_conv_ratio_;
+        joint_state.position[joint_total_number_-1] = fingers.Finger2 * finger_conv_ratio_;
     }
     else if(finger_number_==3)
     {
-        joint_state.position[joint_total_number_-3] = 0;
-        joint_state.position[joint_total_number_-2] = 0;
-        joint_state.position[joint_total_number_-1] = 0;
+        joint_state.position[joint_total_number_-3] = fingers.Finger1 * finger_conv_ratio_;
+        joint_state.position[joint_total_number_-2] = fingers.Finger2 * finger_conv_ratio_;
+        joint_state.position[joint_total_number_-1] = fingers.Finger3 * finger_conv_ratio_;
     }
 
 
