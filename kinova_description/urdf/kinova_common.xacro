@@ -93,7 +93,7 @@
             <axis xyz="0 0 1"/>
             <origin xyz="0.044 -0.003 0" rpy="0 0 0"/>
             <limit lower="0" upper="2" effort="30" velocity="5"/>
-            <mimic joint="${prefix}_joint_finger_${finger_number}" multiplier="0.5"/>
+            <mimic joint="${prefix}_joint_finger_${finger_number}" multiplier="0.1"/>
         </joint>
 
     </xacro:macro>
