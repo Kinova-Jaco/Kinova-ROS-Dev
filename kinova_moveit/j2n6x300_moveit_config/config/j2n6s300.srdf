@@ -47,12 +47,12 @@
         <joint name="j2n6s300_joint_finger_tip_3" value="0" />
     </group_state>
     <group_state name="Close" group="gripper">
-        <joint name="j2n6s300_joint_finger_1" value="1.2584" />
-        <joint name="j2n6s300_joint_finger_2" value="1.4494" />
-        <joint name="j2n6s300_joint_finger_3" value="1.4157" />
-        <joint name="j2n6s300_joint_finger_tip_1" value="0" />
-        <joint name="j2n6s300_joint_finger_tip_2" value="0" />
-        <joint name="j2n6s300_joint_finger_tip_3" value="0" />
+        <joint name="j2n6s300_joint_finger_1" value="1.4" />
+        <joint name="j2n6s300_joint_finger_2" value="1.4" />
+        <joint name="j2n6s300_joint_finger_3" value="1.4" />
+        <joint name="j2n6s300_joint_finger_tip_1" value="0.0" />
+        <joint name="j2n6s300_joint_finger_tip_2" value="0.0" />
+        <joint name="j2n6s300_joint_finger_tip_3" value="0.0" />
     </group_state>
     <group_state name="Vertical" group="arm">
         <joint name="j2n6s300_joint_1" value="3.1415" />
@@ -138,4 +138,7 @@
     <disable_collisions link1="j2n6s300_link_finger_tip_1" link2="root" reason="Never" />
     <disable_collisions link1="j2n6s300_link_finger_tip_2" link2="root" reason="Never" />
     <disable_collisions link1="j2n6s300_link_finger_tip_3" link2="root" reason="Never" />
+    <disable_collisions link1="j2n6s300_link_finger_tip_1" link2="j2n6s300_link_finger_tip_2" reason="Allowed" />
+    <disable_collisions link1="j2n6s300_link_finger_tip_2" link2="j2n6s300_link_finger_tip_3" reason="Allowed" />
+    <disable_collisions link1="j2n6s300_link_finger_tip_3" link2="j2n6s300_link_finger_tip_1" reason="Allowed" />
 </robot>

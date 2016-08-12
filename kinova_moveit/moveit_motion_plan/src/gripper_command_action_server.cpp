@@ -2,7 +2,8 @@
 
 using namespace kinova;
 
-const double finger_maxTurn_ = 6400; // maximum turn (KinovaFinger defalt unit) value
+
+
 
 GripperCommandActionController::GripperCommandActionController(ros::NodeHandle &n):
     nh_(n),
@@ -12,8 +13,10 @@ GripperCommandActionController::GripperCommandActionController(ros::NodeHandle &
     action_client_set_finger_.reset(new SFPAC(nh_, "/j2n6s300_driver/fingers_action/finger_positions"));
 
     ros::NodeHandle pn("~");
-    // gripper gap goal error should be less than 1%. unit of GripperCommand is meter, however, in this test, 0 is gripper open, and 1 is gripper close. Thus, 0.01 is about 1% for KinovaFinger turn.
+    // unit of GripperCommand is meter. Gripper_command_goal from "moveit.rviz" is in unit of radians.
     nh_.param("gripper_command_goal_constraint_", gripper_command_goal_constraint_, 0.01);
+    nh_.param("finger_max_turn_", finger_max_turn_, 6400.0);
+    nh_.param("finger_conv_ratio_", finger_conv_ratio_, 1.4 / 6400.0);
 
     gripper_joint_num_ = 3;
     gripper_joint_names_.resize(gripper_joint_num_);
@@ -89,17 +92,17 @@ void GripperCommandActionController::goalCBFollow(GCAS::GoalHandle gh)
     gh.setAccepted();
     active_goal_ = gh;
     has_active_goal_ = true;
-    // gripper_gap zero is open, 1 is close.
+    // gripper_gap 0 is open, 1.4 is close. Here command.position from Moveit.rviz is finger radian value, rather than Cartesian gap of gripper in meter.
     double gripper_gap = active_goal_.getGoal()->command.position;
     ROS_INFO("Gripper_command_action_server accepted goal!");
 
 
     // send the goal to fingers position action server
     kinova_msgs::SetFingersPositionGoal goal;
-    goal.fingers.finger1 = gripper_gap/2.0  * finger_maxTurn_;
-    goal.fingers.finger2 = gripper_gap/2.0  * finger_maxTurn_;
+    goal.fingers.finger1 = std::min( finger_max_turn_ , gripper_gap/finger_conv_ratio_);
+    goal.fingers.finger2 = std::min( finger_max_turn_ , gripper_gap/finger_conv_ratio_);
     if (gripper_joint_num_ == 3)
-        goal.fingers.finger3 = gripper_gap/2.0 * finger_maxTurn_;
+        goal.fingers.finger3 = std::min( finger_max_turn_ , gripper_gap/finger_conv_ratio_);
     else
         goal.fingers.finger3 = 0.0;
 
@@ -133,9 +136,9 @@ void GripperCommandActionController::controllerStateCB(const kinova_msgs::Finger
         return;
 
     // Checks that we have ended inside the goal constraints, FingerPosition has 3 values
-    double abs_error1 = fabs(active_goal_.getGoal()->command.position - msg->finger1/finger_maxTurn_*2);
-    double abs_error2 = fabs(active_goal_.getGoal()->command.position - msg->finger2/finger_maxTurn_*2);
-    double abs_error3 = fabs(active_goal_.getGoal()->command.position - msg->finger3/finger_maxTurn_*2);
+    double abs_error1 = fabs(active_goal_.getGoal()->command.position - msg->finger1 * finger_conv_ratio_);
+    double abs_error2 = fabs(active_goal_.getGoal()->command.position - msg->finger2 * finger_conv_ratio_);
+    double abs_error3 = fabs(active_goal_.getGoal()->command.position - msg->finger3 * finger_conv_ratio_);
 
     if (abs_error1<gripper_command_goal_constraint_  && abs_error2<gripper_command_goal_constraint_ && abs_error3<gripper_command_goal_constraint_)
     {
