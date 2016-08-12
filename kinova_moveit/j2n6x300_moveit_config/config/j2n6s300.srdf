@@ -138,4 +138,7 @@
     <disable_collisions link1="j2n6s300_link_finger_tip_1" link2="root" reason="Never" />
     <disable_collisions link1="j2n6s300_link_finger_tip_2" link2="root" reason="Never" />
     <disable_collisions link1="j2n6s300_link_finger_tip_3" link2="root" reason="Never" />
+    <disable_collisions link1="j2n6s300_link_finger_tip_1" link2="j2n6s300_link_finger_tip_2" reason="Allowed" />
+    <disable_collisions link1="j2n6s300_link_finger_tip_2" link2="j2n6s300_link_finger_tip_3" reason="Allowed" />
+    <disable_collisions link1="j2n6s300_link_finger_tip_3" link2="j2n6s300_link_finger_tip_1" reason="Allowed" />
 </robot>
