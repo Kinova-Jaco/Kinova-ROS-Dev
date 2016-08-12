@@ -51,9 +51,9 @@ void pick(moveit::planning_interface::MoveGroup &group)
 
   geometry_msgs::PoseStamped p;
   p.header.frame_id = "root";
-  p.pose.position.x = 0.35;
-  p.pose.position.y = 0.35;
-  p.pose.position.z = 0.13;
+  p.pose.position.x = 0.5;
+  p.pose.position.y = 0.0;
+  p.pose.position.z = 0.13/1.0;
   p.pose.orientation.x = 0;
   p.pose.orientation.y = 0;
   p.pose.orientation.z = 0;
@@ -191,8 +191,8 @@ int main(int argc, char **argv)
   co.primitives.resize(1);
   co.primitives[0].type = shape_msgs::SolidPrimitive::BOX;
   co.primitives[0].dimensions.resize(3);
-  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.072;
-  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.072;
+  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.072/2.0;
+  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.072/2.0;
   co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.13;
 
   co.primitive_poses.resize(1);
