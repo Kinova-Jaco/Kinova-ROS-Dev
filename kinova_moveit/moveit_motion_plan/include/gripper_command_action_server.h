@@ -36,6 +36,9 @@ namespace kinova
         double gripper_command_goal_constraint_;
         double gripper_joint_num_;
 
+        double finger_max_turn_ ; // maximum turn (KinovaFinger defalt unit) value
+        double finger_conv_ratio_; // finger value convert ratio defined in kinova_driver/kinova_arm
+
         void goalCBFollow(GCAS::GoalHandle gh);
         void cancelCBFollow(GCAS::GoalHandle gh);
         void controllerStateCB(const kinova_msgs::FingerPositionConstPtr &msg);
