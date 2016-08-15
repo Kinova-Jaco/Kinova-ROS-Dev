@@ -61,25 +61,31 @@ void pick(moveit::planning_interface::MoveGroup &group)
   moveit_msgs::Grasp g;
   g.grasp_pose = p;
 
-  g.pre_grasp_approach.direction.vector.x = 1.0;
+  g.pre_grasp_approach.direction.header.stamp = ros::Time::now();
   g.pre_grasp_approach.direction.header.frame_id = "j2n6s300_end_effector";
+  g.pre_grasp_approach.direction.vector.z = 1.0;
   g.pre_grasp_approach.min_distance = 0.1;
   g.pre_grasp_approach.desired_distance = 0.2;
 
+  g.post_grasp_retreat.direction.header.stamp = ros::Time::now();
   g.post_grasp_retreat.direction.header.frame_id = "root";
   g.post_grasp_retreat.direction.vector.z = 1.0;
   g.post_grasp_retreat.min_distance = 0.05;
   g.post_grasp_retreat.desired_distance = 0.15;
 
-  g.pre_grasp_posture.joint_names.resize(1, "j2n6s300_joint_6");
+
+  g.pre_grasp_posture.joint_names.resize(1, "j2n6s300_joint_finger_1");
   g.pre_grasp_posture.points.resize(1);
   g.pre_grasp_posture.points[0].positions.resize(1);
   g.pre_grasp_posture.points[0].positions[0] = 1;
 
-  g.grasp_posture.joint_names.resize(1, "j2n6s300_joint_6");
+  g.grasp_posture.joint_names.resize(1, "j2n6s300_joint_finger_1");
   g.grasp_posture.points.resize(1);
   g.grasp_posture.points[0].positions.resize(1);
   g.grasp_posture.points[0].positions[0] = 0;
+
+  g.allowed_touch_objects.resize(1);
+  g.allowed_touch_objects[0] = "part";
 
   grasps.push_back(g);
   group.setSupportSurfaceName("table");
@@ -191,8 +197,8 @@ int main(int argc, char **argv)
   co.primitives.resize(1);
   co.primitives[0].type = shape_msgs::SolidPrimitive::BOX;
   co.primitives[0].dimensions.resize(3);
-  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.072/2.0;
-  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.072/2.0;
+  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.036*1.0;
+  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.036*1.0;
   co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.13;
 
   co.primitive_poses.resize(1);
@@ -202,7 +208,7 @@ int main(int argc, char **argv)
   co.operation = moveit_msgs::CollisionObject::ADD;
 
   moveit_msgs::AttachedCollisionObject aco;
-  aco.link_name = "j2n6s300_end_effector";
+  aco.link_name = "root";
   aco.object = co;
   pub_aco.publish(aco);
 
