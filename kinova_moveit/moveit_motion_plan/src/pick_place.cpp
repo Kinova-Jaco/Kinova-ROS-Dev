@@ -49,49 +49,63 @@ void pick(moveit::planning_interface::MoveGroup &group)
 {
   std::vector<moveit_msgs::Grasp> grasps;
 
+  // pose of gripper when grasping
   geometry_msgs::PoseStamped p;
+//  p.header.frame_id = "root";
+//  p.pose.position.x = 0.5;
+//  p.pose.position.y = 0.0;
+//  p.pose.position.z = 0.13/1.0;
+//  p.pose.orientation.x = -0.495605587959;
+//  p.pose.orientation.y = -0.531222403049;
+//  p.pose.orientation.z = -0.575461030006;
+//  p.pose.orientation.w = -0.375529646873;
+
   p.header.frame_id = "root";
-  p.pose.position.x = 0.5;
-  p.pose.position.y = 0.0;
-  p.pose.position.z = 0.13/1.0;
-  p.pose.orientation.x = 0;
-  p.pose.orientation.y = 0;
-  p.pose.orientation.z = 0;
-  p.pose.orientation.w = 1;
+  p.pose.position.x = 0.5020;
+  p.pose.position.y = -0.3910;
+  p.pose.position.z = 0.4870;
+  p.pose.orientation.x = 0.650062918663;
+  p.pose.orientation.y = 0.319907665253;
+  p.pose.orientation.z = 0.422783970833;
+  p.pose.orientation.w = 0.544362962246;
+
   moveit_msgs::Grasp g;
   g.grasp_pose = p;
 
   g.pre_grasp_approach.direction.header.stamp = ros::Time::now();
   g.pre_grasp_approach.direction.header.frame_id = "j2n6s300_end_effector";
   g.pre_grasp_approach.direction.vector.z = 1.0;
-  g.pre_grasp_approach.min_distance = 0.1;
-  g.pre_grasp_approach.desired_distance = 0.2;
+  g.pre_grasp_approach.min_distance = 0.01;
+  g.pre_grasp_approach.desired_distance = 0.1;
 
   g.post_grasp_retreat.direction.header.stamp = ros::Time::now();
-  g.post_grasp_retreat.direction.header.frame_id = "root";
-  g.post_grasp_retreat.direction.vector.z = 1.0;
-  g.post_grasp_retreat.min_distance = 0.05;
-  g.post_grasp_retreat.desired_distance = 0.15;
+  g.post_grasp_retreat.direction.header.frame_id = "j2n6s300_end_effector";
+  g.post_grasp_retreat.direction.vector.y = 1.0;
+  g.post_grasp_retreat.min_distance = 0.01;
+  g.post_grasp_retreat.desired_distance = 0.1;
 
 
   g.pre_grasp_posture.joint_names.resize(1, "j2n6s300_joint_finger_1");
   g.pre_grasp_posture.points.resize(1);
   g.pre_grasp_posture.points[0].positions.resize(1);
-  g.pre_grasp_posture.points[0].positions[0] = 1;
+  g.pre_grasp_posture.points[0].positions[0] = 0;
 
   g.grasp_posture.joint_names.resize(1, "j2n6s300_joint_finger_1");
   g.grasp_posture.points.resize(1);
   g.grasp_posture.points[0].positions.resize(1);
-  g.grasp_posture.points[0].positions[0] = 0;
+  g.grasp_posture.points[0].positions[0] = 1.4;
 
   g.allowed_touch_objects.resize(1);
   g.allowed_touch_objects[0] = "part";
 
+
   grasps.push_back(g);
-  group.setSupportSurfaceName("table");
+//  group.setSupportSurfaceName("table");
   ROS_DEBUG_STREAM("" << __PRETTY_FUNCTION__ << ", line: " << __LINE__);
-  group.pick("part", grasps);
-  ROS_DEBUG_STREAM("" << __PRETTY_FUNCTION__ << ", line: " << __LINE__);
+  group.setNumPlanningAttempts(5);
+  group.allowReplanning(true);
+  bool group_pick = group.pick("part", grasps);
+  ROS_DEBUG_STREAM("" << __PRETTY_FUNCTION__ << ", line: " << __LINE__ << std::endl << "group_pick is: " << (group_pick == 1 ? "sccessful" : "failed") );
 }
 
 void place(moveit::planning_interface::MoveGroup &group)
@@ -168,49 +182,72 @@ int main(int argc, char **argv)
   moveit::planning_interface::MoveGroup group("arm");
   group.setPlanningTime(45.0);
 
+
   moveit_msgs::CollisionObject co;
   co.header.stamp = ros::Time::now();
-  co.header.frame_id = "root";
+//  co.header.frame_id = "root";
 
-  // add table
-  co.id = "table";
-  co.primitives.resize(1);
-  co.primitives[0].type = shape_msgs::SolidPrimitive::BOX;
-  co.primitives[0].dimensions.resize(3);
-  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 1.6;
-  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.8;
-  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.03;
-  co.primitive_poses.resize(1);
-  co.primitive_poses[0].position.x = 1.6/2.0 - 0.15;
-  co.primitive_poses[0].position.y = 0.8/2.0 - 0.08;
-  co.primitive_poses[0].position.z = 0.03/2.0;
-  co.primitive_poses[0].orientation.w = 1.0;
-  co.operation = moveit_msgs::CollisionObject::ADD;
-  pub_co.publish(co);
+//  // add table
+//  co.id = "table";
+//  co.primitives.resize(1);
+//  co.primitives[0].type = shape_msgs::SolidPrimitive::BOX;
+//  co.primitives[0].dimensions.resize(3);
+//  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 1.6;
+//  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.8;
+//  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.03;
+//  co.primitive_poses.resize(1);
+//  co.primitive_poses[0].position.x = 1.6/2.0 - 0.15;
+//  co.primitive_poses[0].position.y = 0.8/2.0 - 0.08;
+//  co.primitive_poses[0].position.z = -0.03/2.0;
+//  co.primitive_poses[0].orientation.w = 1.0;
+//  co.operation = moveit_msgs::CollisionObject::ADD;
+//  pub_co.publish(co);
 
   // add part
 
-
-
+  moveit_msgs::AttachedCollisionObject aco;
+  aco.link_name = "j2n6s300_end_effector";
+  aco.touch_links.push_back("j2n6s300_link_6");
+  aco.touch_links.push_back("j2n6s300_link_finger_1");
+  aco.touch_links.push_back("j2n6s300_link_finger_tip_1");
+  aco.touch_links.push_back("j2n6s300_link_finger_2");
+  aco.touch_links.push_back("j2n6s300_link_finger_tip_2");
+  aco.touch_links.push_back("j2n6s300_link_finger_3");
+  aco.touch_links.push_back("j2n6s300_link_finger_tip_3");
 
   co.id = "part";
+  group.detachObject(co.id);
+  co.operation = moveit_msgs::CollisionObject::REMOVE;
+  pub_co.publish(co);
+
+  co.header.frame_id = "root";
   co.primitives.resize(1);
   co.primitives[0].type = shape_msgs::SolidPrimitive::BOX;
   co.primitives[0].dimensions.resize(3);
   co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.036*1.0;
   co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.036*1.0;
-  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.13;
+  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.036*1.0;
 
   co.primitive_poses.resize(1);
-  co.primitive_poses[0].position.x = 0.7;
-  co.primitive_poses[0].position.y = 0.0;
-  co.primitive_poses[0].position.z = 0.13/2.0;
+//  co.primitive_poses[0].position.x = 0.7;
+//  co.primitive_poses[0].position.y = 0.0;
+//  co.primitive_poses[0].position.z = 0.13/2.0;
+
+  // a test position a bit forward along z axis of gripper, starting from Home
+  co.primitive_poses[0].position.x = 0.5020;
+  co.primitive_poses[0].position.y = -0.3910;
+  co.primitive_poses[0].position.z = 0.4870;
+  co.primitive_poses[0].orientation.x = 0.650062918663;
+  co.primitive_poses[0].orientation.y = 0.319907665253;
+  co.primitive_poses[0].orientation.z = 0.422783970833;
+  co.primitive_poses[0].orientation.w = 0.544362962246;
   co.operation = moveit_msgs::CollisionObject::ADD;
 
-  moveit_msgs::AttachedCollisionObject aco;
-  aco.link_name = "root";
+
   aco.object = co;
   pub_aco.publish(aco);
+
+
 
   // wait a bit for ros things to initialize
   ros::WallDuration(1.0).sleep();
