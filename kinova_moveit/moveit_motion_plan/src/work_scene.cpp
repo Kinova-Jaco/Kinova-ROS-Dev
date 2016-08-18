@@ -85,7 +85,7 @@ int main(int argc, char** argv)
     work_scene.world.collision_objects.push_back(collision_objects);
     work_scene.is_diff = true;
     pub_work_scene.publish(work_scene);
-    ros::Duration(1).sleep();
+    ros::WallDuration(1).sleep();
 
 
     ros::shutdown();

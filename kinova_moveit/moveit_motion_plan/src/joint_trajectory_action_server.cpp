@@ -49,7 +49,7 @@ JointTrajectoryActionController::JointTrajectoryActionController(ros::NodeHandle
             ROS_WARN("Waited for the controller for 30 seconds, but it never showed up. Continue waiting the feedback of trajectory state on topic /trajectory_controller/state ...");
             started_waiting_for_controller = ros::Time(0);
         }
-        ros::Duration(0.1).sleep();
+        ros::WallDuration(0.1).sleep();
     }
 
 
