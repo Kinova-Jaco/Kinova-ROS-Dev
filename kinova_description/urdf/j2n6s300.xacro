@@ -52,8 +52,8 @@
     <property name="joint_1_axis_xyz" value="0 0 1" />
     <property name="joint_1_origin_xyz" value="0 0 0.15675" />
     <property name="joint_1_origin_rpy" value="0 ${J_PI} 0" />
-    <property name="joint_1_lower_limit" value="0" />
-    <property name="joint_1_upper_limit" value="${2*J_PI}" />
+    <property name="joint_1_lower_limit" value="${-2*J_PI}" />
+    <property name="joint_1_upper_limit" value="${4*J_PI}" />
 
     <property name="joint_2" value="${prefix}_joint_2" />
     <property name="joint_2_type" value="revolute" />
@@ -76,8 +76,8 @@
     <property name="joint_4_axis_xyz" value="0 0 1" />
     <property name="joint_4_origin_xyz" value="0 0.2073 -0.0114" />
     <property name="joint_4_origin_rpy" value="-${J_PI/2} 0 ${J_PI}" />
-    <property name="joint_4_lower_limit" value="0" />
-    <property name="joint_4_upper_limit" value="${2*J_PI}" />
+    <property name="joint_4_lower_limit" value="${-2*J_PI}" />
+    <property name="joint_4_upper_limit" value="${4*J_PI}" />
 
     <property name="joint_5" value="${prefix}_joint_5" />
     <property name="joint_5_type" value="continuous" />
