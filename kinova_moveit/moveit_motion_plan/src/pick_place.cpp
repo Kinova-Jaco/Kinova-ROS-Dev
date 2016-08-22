@@ -60,6 +60,7 @@ void pick(moveit::planning_interface::MoveGroup &group)
 //  p.pose.orientation.z = -0.575461030006;
 //  p.pose.orientation.w = -0.375529646873;
 
+  p.header.stamp = ros::Time::now();
   p.header.frame_id = "root";
   p.pose.position.x = 0.5020;
   p.pose.position.y = -0.3910;
@@ -70,19 +71,24 @@ void pick(moveit::planning_interface::MoveGroup &group)
   p.pose.orientation.w = 0.544362962246;
 
   moveit_msgs::Grasp g;
+  g.id = "grasp_part";
   g.grasp_pose = p;
 
   g.pre_grasp_approach.direction.header.stamp = ros::Time::now();
   g.pre_grasp_approach.direction.header.frame_id = "j2n6s300_end_effector";
+  g.pre_grasp_approach.direction.vector.x = 0.0;
+  g.pre_grasp_approach.direction.vector.y = 0.0;
   g.pre_grasp_approach.direction.vector.z = 1.0;
   g.pre_grasp_approach.min_distance = 0.01;
-  g.pre_grasp_approach.desired_distance = 0.1;
+  g.pre_grasp_approach.desired_distance = 0.05;
 
   g.post_grasp_retreat.direction.header.stamp = ros::Time::now();
   g.post_grasp_retreat.direction.header.frame_id = "j2n6s300_end_effector";
-  g.post_grasp_retreat.direction.vector.y = 1.0;
-  g.post_grasp_retreat.min_distance = 0.01;
-  g.post_grasp_retreat.desired_distance = 0.1;
+  g.post_grasp_retreat.direction.vector.x = 0.0;
+  g.post_grasp_retreat.direction.vector.y = 0.0;
+  g.post_grasp_retreat.direction.vector.z = -1.0;
+  g.post_grasp_retreat.min_distance = 0.0;
+  g.post_grasp_retreat.desired_distance = 0.0;
 
 
   g.pre_grasp_posture.joint_names.resize(1, "j2n6s300_joint_finger_1");
