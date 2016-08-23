@@ -37,7 +37,11 @@
 #include <ros/ros.h>
 
 // MoveIt!
+#include <moveit/robot_model_loader/robot_model_loader.h>
+#include <moveit/planning_scene/planning_scene.h>
+
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
+
 #include <moveit/move_group_interface/move_group.h>
 #include <geometric_shapes/solid_primitive_dims.h>
 
@@ -197,6 +201,11 @@ int main(int argc, char **argv)
     ps->getCurrentStateNonConst().update();
     robot_state::RobotState current_state = ps->getCurrentState();
 
+
+    // robot model
+    robot_model_loader::RobotModelLoader m_robot_model_loader("robot_description");
+    robot_model::RobotModelPtr kinematic_model = m_robot_model_loader.getModel();
+    planning_scene::PlanningScene m_planning_scene(kinematic_model);
 
     moveit::planning_interface::MoveGroup group("arm");
     group.allowReplanning(true);
