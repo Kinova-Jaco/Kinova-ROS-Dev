@@ -207,7 +207,7 @@ int main(int argc, char **argv)
     // send robot to home position
     group.setNamedTarget("Home");
     group.move();
-    ros::WallDuration(5.0).sleep();
+    ros::WallDuration(1.0).sleep();
     ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": send robot to home position");
 
     moveit_msgs::CollisionObject co;
@@ -264,36 +264,64 @@ int main(int argc, char **argv)
     co.primitive_poses[0].orientation.y = 0.319907665253;
     co.primitive_poses[0].orientation.z = 0.422783970833;
     co.primitive_poses[0].orientation.w = 0.544362962246;
-    co.operation = moveit_msgs::CollisionObject::ADD;
 
     // publish objects
     co.id = "part";
+
     ps->getCurrentStateNonConst().update();
     current_state = ps->getCurrentState();
+    current_state.update(true);
+    ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": hasAttachedBody " <<  current_state.hasAttachedBody(co.id));
+
     if ( current_state.hasAttachedBody(co.id) )
     {
 //        // group is NOT working
-//        group.detachObject(co.id);
-//        group.getCurrentState()->clearAttachedBody("part");
-//        group.getCurrentState()->clearAttachedBodies();
+        group.detachObject(co.id);
+        group.getCurrentState()->clearAttachedBody("part");
+        group.getCurrentState()->clearAttachedBodies();
         co.operation = moveit_msgs::CollisionObject::REMOVE;
         pub_co.publish(co);
+        pub_aco.publish(aco);
+        current_state.clearAttachedBody("part");
+        current_state.clearAttachedBodies();
+
+        ps->getCurrentStateNonConst().update();
+        current_state = ps->getCurrentState();
+        current_state.update(true);
         ROS_DEBUG_STREAM("The existed object " << co.id << " is removed.");
+        ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": hasAttachedBody " <<  current_state.hasAttachedBody(co.id));
     }
 
-    aco.object = co;
-    pub_aco.publish(aco);
 
 
-    // try pick and place
     std::string pause;
-    ROS_WARN_STREAM("going to pick, and press any key to continue");
+
+//    ps->getCurrentStateNonConst().update();
+    current_state = ps->getCurrentState();
+    current_state.update(true);
+    ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": hasAttachedBody " <<  current_state.hasAttachedBody(co.id));
+
+    ROS_WARN_STREAM("going to pub_aco.publish(aco), and press any key to continue");
     std::cin >> pause;
 
-    // wait a bit for ros things to initialize
+    co.operation = moveit_msgs::CollisionObject::ADD;
+    aco.object = co;
+    pub_aco.publish(aco);
     ros::WallDuration(1.0).sleep();
-    ROS_DEBUG_STREAM("" << __PRETTY_FUNCTION__ << ", line: " << __LINE__);
-    pick(group);
+
+    ps->getCurrentStateNonConst().update();
+    current_state = ps->getCurrentState();
+    ros::WallDuration(0.1).sleep();
+    ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": hasAttachedBody " <<  current_state.hasAttachedBody(co.id));
+
+    // try pick and place
+//    ROS_WARN_STREAM("going to pick, and press any key to continue");
+//    std::cin >> pause;
+
+//    // wait a bit for ros things to initialize
+//    ros::WallDuration(1.0).sleep();
+//    ROS_DEBUG_STREAM("" << __PRETTY_FUNCTION__ << ", line: " << __LINE__);
+//    pick(group);
     ROS_DEBUG_STREAM("" << __PRETTY_FUNCTION__ << ", line: " << __LINE__);
     ros::WallDuration(1.0).sleep();
 
