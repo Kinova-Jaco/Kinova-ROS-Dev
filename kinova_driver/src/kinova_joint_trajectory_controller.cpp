@@ -170,13 +170,13 @@ void JointTrajectoryController::commandCB(const trajectory_msgs::JointTrajectory
     double trajectory_duration = traj_command_points_[0].time_from_start.toSec();
 
     durations[0] = trajectory_duration;
-    ROS_DEBUG_STREAM("durationsn 0 is: " << durations[0]);
+//    ROS_DEBUG_STREAM("durationsn 0 is: " << durations[0]);
 
     for (int i = 1; i<traj_command_points_.size(); i++)
     {
         durations[i] = (traj_command_points_[i].time_from_start - traj_command_points_[i-1].time_from_start).toSec();
         trajectory_duration += durations[i];
-        ROS_DEBUG_STREAM("durations " << i << " is: " << durations[i]);
+//        ROS_DEBUG_STREAM("durations " << i << " is: " << durations[i]);
     }
 
     // start timer thread to publish joint velocity command
