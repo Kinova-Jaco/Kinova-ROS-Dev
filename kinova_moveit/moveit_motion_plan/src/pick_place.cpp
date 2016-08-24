@@ -53,6 +53,48 @@ void pick(moveit::planning_interface::MoveGroup &group)
 {
     std::vector<moveit_msgs::Grasp> grasps;
 
+      geometry_msgs::PoseStamped p;
+      p.header.frame_id = "root";
+      p.pose.position.x = 0.32;
+      p.pose.position.y = -0.3;
+      p.pose.position.z = 0.5;
+      p.pose.orientation.x = 0;
+      p.pose.orientation.y = 0;
+      p.pose.orientation.z = 0;
+      p.pose.orientation.w = 1;
+      moveit_msgs::Grasp g;
+      g.grasp_pose = p;
+
+      g.pre_grasp_approach.direction.vector.x = 1.0;
+      g.pre_grasp_approach.direction.header.frame_id = "j2n6s300_end_effector";
+      g.pre_grasp_approach.min_distance = 0.2;
+      g.pre_grasp_approach.desired_distance = 0.4;
+
+      g.post_grasp_retreat.direction.header.frame_id = "root";
+      g.post_grasp_retreat.direction.vector.z = 1.0;
+      g.post_grasp_retreat.min_distance = 0.1;
+      g.post_grasp_retreat.desired_distance = 0.25;
+
+      g.pre_grasp_posture.joint_names.resize(1, "j2n6s300_joint_finger_1");
+      g.pre_grasp_posture.points.resize(1);
+      g.pre_grasp_posture.points[0].positions.resize(1);
+      g.pre_grasp_posture.points[0].positions[0] = 1;
+
+      g.grasp_posture.joint_names.resize(1, "j2n6s300_joint_finger_1");
+      g.grasp_posture.points.resize(1);
+      g.grasp_posture.points[0].positions.resize(1);
+      g.grasp_posture.points[0].positions[0] = 0;
+
+      grasps.push_back(g);
+      group.setSupportSurfaceName("table");
+      group.pick("part", grasps);
+
+
+
+    /*
+
+    std::vector<moveit_msgs::Grasp> grasps;
+
     // pose of gripper when grasping
     geometry_msgs::PoseStamped p;
     //  p.header.frame_id = "root";
@@ -119,6 +161,7 @@ void pick(moveit::planning_interface::MoveGroup &group)
     group.allowReplanning(true);
     bool group_pick = group.pick("part", grasps);
     ROS_DEBUG_STREAM("" << __PRETTY_FUNCTION__ << ", line: " << __LINE__ << std::endl << "group_pick is: " << (group_pick == 1 ? "sccessful" : "failed") );
+    */
 }
 
 void place(moveit::planning_interface::MoveGroup &group)
@@ -181,6 +224,8 @@ int main(int argc, char **argv)
     ros::AsyncSpinner spinner(1);
     spinner.start();
 
+        std::string pause;
+
     if(ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug))
     {
         ros::console::notifyLoggerLevelsChanged();
@@ -190,25 +235,9 @@ int main(int argc, char **argv)
     ros::Publisher pub_co = nh.advertise<moveit_msgs::CollisionObject>("collision_object", 10);
     ros::Publisher pub_aco = nh.advertise<moveit_msgs::AttachedCollisionObject>("attached_collision_object", 10);
 
-    // initialization planning scene to check work scene, since group.getCurrentState()->hasAttachedBody cannot detect attached objects.
-    const std::string PLANNING_SCENE_SERVICE = "get_planning_scene";
-    planning_scene_monitor::PlanningSceneMonitorPtr planning_scene_monitor_ =
-            boost::make_shared<planning_scene_monitor::PlanningSceneMonitor>("robot_description");
-    planning_scene_monitor_->requestPlanningSceneState(PLANNING_SCENE_SERVICE);
-    planning_scene_monitor::LockedPlanningSceneRW ps(planning_scene_monitor_);
-
-    // each time the current state is needed
-    ps->getCurrentStateNonConst().update();
-    robot_state::RobotState current_state = ps->getCurrentState();
-
-
-    // robot model
-    robot_model_loader::RobotModelLoader m_robot_model_loader("robot_description");
-    robot_model::RobotModelPtr kinematic_model = m_robot_model_loader.getModel();
-    planning_scene::PlanningScene m_planning_scene(kinematic_model);
+    ros::WallDuration(1.0).sleep();
 
     moveit::planning_interface::MoveGroup group("arm");
-    group.allowReplanning(true);
     group.setPlanningTime(360.0);
 
     ros::WallDuration(1.0).sleep();
@@ -221,109 +250,98 @@ int main(int argc, char **argv)
 
     moveit_msgs::CollisionObject co;
     co.header.stamp = ros::Time::now();
-    //  co.header.frame_id = "root";
-
-    //  // add table
-    //  co.id = "table";
-    //  co.primitives.resize(1);
-    //  co.primitives[0].type = shape_msgs::SolidPrimitive::BOX;
-    //  co.primitives[0].dimensions.resize(3);
-    //  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 1.6;
-    //  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.8;
-    //  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.03;
-    //  co.primitive_poses.resize(1);
-    //  co.primitive_poses[0].position.x = 1.6/2.0 - 0.15;
-    //  co.primitive_poses[0].position.y = 0.8/2.0 - 0.08;
-    //  co.primitive_poses[0].position.z = -0.03/2.0;
-    //  co.primitive_poses[0].orientation.w = 1.0;
-    //  co.operation = moveit_msgs::CollisionObject::ADD;
-    //  pub_co.publish(co);
-    // add part
-
-    moveit_msgs::AttachedCollisionObject aco;
-    aco.link_name = "j2n6s300_end_effector";
-    aco.touch_links.push_back("j2n6s300_link_6");
-    aco.touch_links.push_back("j2n6s300_link_finger_1");
-    aco.touch_links.push_back("j2n6s300_link_finger_tip_1");
-    aco.touch_links.push_back("j2n6s300_link_finger_2");
-    aco.touch_links.push_back("j2n6s300_link_finger_tip_2");
-    aco.touch_links.push_back("j2n6s300_link_finger_3");
-    aco.touch_links.push_back("j2n6s300_link_finger_tip_3");
-
-
     co.header.frame_id = "root";
-    co.primitives.resize(1);
-    co.primitives[0].type = shape_msgs::SolidPrimitive::BOX;
-    co.primitives[0].dimensions.resize(3);
-    co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.036*1.0;
-    co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.036*1.0;
-    co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.036*1.0;
 
-    co.primitive_poses.resize(1);
-    //  co.primitive_poses[0].position.x = 0.7;
-    //  co.primitive_poses[0].position.y = 0.0;
-    //  co.primitive_poses[0].position.z = 0.13/2.0;
+//    ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": no publishing ");
+//    std::cin >> pause;
 
-    // a test position a bit forward along z axis of gripper, starting from Home
-    co.primitive_poses[0].position.x = 0.5020;
-    co.primitive_poses[0].position.y = -0.3910;
-    co.primitive_poses[0].position.z = 0.4870;
-    co.primitive_poses[0].orientation.x = 0.650062918663;
-    co.primitive_poses[0].orientation.y = 0.319907665253;
-    co.primitive_poses[0].orientation.z = 0.422783970833;
-    co.primitive_poses[0].orientation.w = 0.544362962246;
+    // remove pole
+      co.id = "pole";
+      co.operation = moveit_msgs::CollisionObject::REMOVE;
+      pub_co.publish(co);
+//      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove pole ");
+//      std::cin >> pause;
 
-    // publish objects
-    co.id = "part";
-
-    ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": hasAttachedBody " <<  current_state.hasAttachedBody(co.id));
-
-    if ( current_state.hasAttachedBody(co.id) )
-    {
-//        // group is NOT working
-        group.detachObject(co.id);
-        group.getCurrentState()->clearAttachedBody("part");
-        group.getCurrentState()->clearAttachedBodies();
-        co.operation = moveit_msgs::CollisionObject::REMOVE;
-        pub_co.publish(co);
-        pub_aco.publish(aco);
-        current_state.clearAttachedBody("part");
-        current_state.clearAttachedBodies();
-
-        ROS_DEBUG_STREAM("The existed object " << co.id << " is removed.");
-        ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": hasAttachedBody " <<  current_state.hasAttachedBody(co.id));
-    }
+      // add pole
+      co.operation = moveit_msgs::CollisionObject::ADD;
+      co.primitives.resize(1);
+      co.primitives[0].type = shape_msgs::SolidPrimitive::BOX;
+      co.primitives[0].dimensions.resize(geometric_shapes::SolidPrimitiveDimCount<shape_msgs::SolidPrimitive::BOX>::value);
+      co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.3;
+      co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.1;
+      co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 1.0;
+      co.primitive_poses.resize(1);
+      co.primitive_poses[0].position.x = 0.7;
+      co.primitive_poses[0].position.y = 0.0; // -0.4
+      co.primitive_poses[0].position.z = 0.85;
+      co.primitive_poses[0].orientation.w = 1.0;
+      pub_co.publish(co);
+//      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": ADD pole ");
+//      std::cin >> pause;
 
 
+      // remove table
+      co.id = "table";
+      co.operation = moveit_msgs::CollisionObject::REMOVE;
+      pub_co.publish(co);
+//      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove table ");
+//      std::cin >> pause;
 
-    std::string pause;
+      // add table
+      co.operation = moveit_msgs::CollisionObject::ADD;
+      co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.5;
+      co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 1.5;
+      co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.35;
+      co.primitive_poses[0].position.x = 0.7;
+      co.primitive_poses[0].position.y = -0.2;
+      co.primitive_poses[0].position.z = 0.175;
+      pub_co.publish(co);
+//      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": ADD table ");
+//      std::cin >> pause;
 
-    ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": hasAttachedBody " <<  current_state.hasAttachedBody(co.id));
+      co.id = "part";
+      co.operation = moveit_msgs::CollisionObject::REMOVE;
+      pub_co.publish(co);
+//      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove part in co ");
+//      std::cin >> pause;
 
-    ROS_WARN_STREAM("going to pub_aco.publish(aco), and press any key to continue");
-    std::cin >> pause;
+      moveit_msgs::AttachedCollisionObject aco;
+      aco.object = co;
+      pub_aco.publish(aco);
+//      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove part in aco ");
+//      std::cin >> pause;
 
-    co.operation = moveit_msgs::CollisionObject::ADD;
-    aco.object = co;
-    pub_aco.publish(aco);
-    ros::WallDuration(1.0).sleep();
 
-    ros::WallDuration(0.1).sleep();
-    ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": hasAttachedBody " <<  current_state.hasAttachedBody(co.id));
+      co.operation = moveit_msgs::CollisionObject::ADD;
+      co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.15;
+      co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.1;
+      co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.3;
+
+      co.primitive_poses[0].position.x = 0.6;
+      co.primitive_poses[0].position.y = -0.3; // -0.7
+      co.primitive_poses[0].position.z = 0.5;
+      pub_co.publish(co);
+
+//      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": add part in co ");
+//      std::cin >> pause;
+
+
 
     // try pick and place
-//    ROS_WARN_STREAM("going to pick, and press any key to continue");
-//    std::cin >> pause;
+    ROS_WARN_STREAM("going to pick, and press any key to continue");
+    std::cin >> pause;
 
 //    // wait a bit for ros things to initialize
 //    ros::WallDuration(1.0).sleep();
 //    ROS_DEBUG_STREAM("" << __PRETTY_FUNCTION__ << ", line: " << __LINE__);
-//    pick(group);
-    ROS_DEBUG_STREAM("" << __PRETTY_FUNCTION__ << ", line: " << __LINE__);
-    ros::WallDuration(1.0).sleep();
+    pick(group);
+//    ROS_DEBUG_STREAM("" << __PRETTY_FUNCTION__ << ", line: " << __LINE__);
+//    ros::WallDuration(1.0).sleep();
 
     //  place(group);
 
-    ros::waitForShutdown();
+//    ros::waitForShutdown();
+    ros::WallDuration(1.0).sleep();
+    ros::shutdown();
     return 0;
 }

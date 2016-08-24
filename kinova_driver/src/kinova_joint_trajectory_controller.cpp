@@ -81,19 +81,19 @@ void JointTrajectoryController::commandCB(const trajectory_msgs::JointTrajectory
 
     bool command_abort = false;
 
-    // if receive new command, clear all trajectory and stop api
-    kinova_comm_.stopAPI();
-    if(!kinova_comm_.isStopped())
-    {
-        ros::Duration(0.01).sleep();
-    }
-    kinova_comm_.eraseAllTrajectories();
+//    // if receive new command, clear all trajectory and stop api
+//    kinova_comm_.stopAPI();
+//    if(!kinova_comm_.isStopped())
+//    {
+//        ros::Duration(0.01).sleep();
+//    }
+//    kinova_comm_.eraseAllTrajectories();
 
-    kinova_comm_.startAPI();
-    if(kinova_comm_.isStopped())
-    {
-        ros::Duration(0.01).sleep();
-    }
+//    kinova_comm_.startAPI();
+//    if(kinova_comm_.isStopped())
+//    {
+//        ros::Duration(0.01).sleep();
+//    }
 
     traj_command_points_ = traj_msg->points;
     ROS_INFO_STREAM("Trajectory controller Receive trajectory with points number: " << traj_command_points_.size());
