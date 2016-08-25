@@ -5,13 +5,20 @@
 
 // MoveIt!
 #include <moveit/robot_model_loader/robot_model_loader.h>
-#include <moveit/planning_scene/planning_scene.h>
-
-#include <moveit/planning_scene_monitor/planning_scene_monitor.h>
+#include <moveit/robot_state/robot_state.h>
+#include <moveit/robot_state/conversions.h>
 
 #include <moveit/move_group_interface/move_group.h>
+#include <moveit/planning_scene/planning_scene.h>
+#include <moveit/planning_scene_monitor/planning_scene_monitor.h>
+
 #include <geometric_shapes/solid_primitive_dims.h>
 
+#include <moveit_msgs/PlanningScene.h>
+#include <moveit_msgs/AttachedCollisionObject.h>
+#include <moveit_msgs/GetStateValidity.h>
+#include <moveit_msgs/DisplayRobotState.h>
+#include <moveit_msgs/ApplyPlanningScene.h>
 namespace kinova
 {
     class PickPlace
@@ -29,9 +36,11 @@ namespace kinova
         // work scene
         moveit_msgs::CollisionObject co_;
         moveit_msgs::AttachedCollisionObject aco_;
+        moveit_msgs::PlanningScene planning_scene_;
 
         ros::Publisher pub_co_;
         ros::Publisher pub_aco_;
+        ros::Publisher pub_planning_scene_diff_;
 
         //
         std::vector<std::string> joint_names_;

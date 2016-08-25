@@ -15,6 +15,7 @@ PickPlace::PickPlace(ros::NodeHandle &nh, moveit::planning_interface::MoveGroup 
 
     pub_co_ = nh_.advertise<moveit_msgs::CollisionObject>("/collision_object", 10);
     pub_aco_ = nh_.advertise<moveit_msgs::AttachedCollisionObject>("/attached_collision_object", 10);
+    pub_planning_scene_diff_ = nh_.advertise<moveit_msgs::PlanningScene>("planning_scene", 1);
 
     int arm_joint_num = 6;
     joint_names_.resize(arm_joint_num);
@@ -73,6 +74,10 @@ void PickPlace::build_workscene()
     co_.primitive_poses[0].position.z = 0.85;
     co_.primitive_poses[0].orientation.w = 1.0;
     pub_co_.publish(co_);
+    planning_scene_.world.collision_objects.push_back(co_);
+    planning_scene_.is_diff = true;
+    pub_planning_scene_diff_.publish(planning_scene_);
+    ros::WallDuration(0.1).sleep();
     //      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": ADD pole ");
     //      std::cin >> pause;
 
@@ -93,8 +98,12 @@ void PickPlace::build_workscene()
     co_.primitive_poses[0].position.y = -0.2;
     co_.primitive_poses[0].position.z = 0.175;
     pub_co_.publish(co_);
-          ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": ADD table ");
-          std::cin >> pause;
+    planning_scene_.world.collision_objects.push_back(co_);
+    planning_scene_.is_diff = true;
+    pub_planning_scene_diff_.publish(planning_scene_);
+    ros::WallDuration(0.1).sleep();
+//          ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": ADD table ");
+//          std::cin >> pause;
 
     co_.id = "part";
     co_.operation = moveit_msgs::CollisionObject::REMOVE;
@@ -117,9 +126,13 @@ void PickPlace::build_workscene()
     co_.primitive_poses[0].position.y = -0.3; // -0.7
     co_.primitive_poses[0].position.z = 0.5;
     pub_co_.publish(co_);
+    planning_scene_.world.collision_objects.push_back(co_);
+    planning_scene_.is_diff = true;
+    pub_planning_scene_diff_.publish(planning_scene_);
+    ros::WallDuration(0.1).sleep();
 
-          ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": add part in co_ ");
-          std::cin >> pause;
+//          ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": add part in co_ ");
+//          std::cin >> pause;
 }
 
 geometry_msgs::PoseStamped define_grasp_pose()
