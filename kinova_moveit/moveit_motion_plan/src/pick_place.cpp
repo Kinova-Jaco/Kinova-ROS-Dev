@@ -1,347 +1,329 @@
-/*********************************************************************
- * Software License Agreement (BSD License)
- *
- *  Copyright (c) 2012, Willow Garage, Inc.
- *  All rights reserved.
- *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions
- *  are met:
- *
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above
- *     copyright notice, this list of conditions and the following
- *     disclaimer in the documentation and/or other materials provided
- *     with the distribution.
- *   * Neither the name of Willow Garage nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- *  POSSIBILITY OF SUCH DAMAGE.
- *********************************************************************/
-
-/* Author: Ioan Sucan */
-
 #include <ros/ros.h>
 
-// MoveIt!
-#include <moveit/robot_model_loader/robot_model_loader.h>
-#include <moveit/planning_scene/planning_scene.h>
-
-#include <moveit/planning_scene_monitor/planning_scene_monitor.h>
+#include <tf/tf.h>
 
 #include <moveit/move_group_interface/move_group.h>
+
+#include <geometry_msgs/PoseStamped.h>
+#include <moveit_msgs/AttachedCollisionObject.h>
+#include <moveit_msgs/CollisionObject.h>
+#include <moveit_msgs/Grasp.h>
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
+
 #include <geometric_shapes/solid_primitive_dims.h>
 
-#include <ros/console.h>
+ros::Publisher pub_co;
+ros::Publisher pub_aco;
+ros::Publisher grasps_marker;
 
-static const std::string ROBOT_DESCRIPTION="robot_description";
+moveit_msgs::CollisionObject co;
+moveit_msgs::AttachedCollisionObject aco;
 
-void pick(moveit::planning_interface::MoveGroup &group)
-{
-    std::vector<moveit_msgs::Grasp> grasps;
-
-      geometry_msgs::PoseStamped p;
-      p.header.frame_id = "root";
-      p.pose.position.x = 0.32;
-      p.pose.position.y = -0.3;
-      p.pose.position.z = 0.5;
-      p.pose.orientation.x = 0;
-      p.pose.orientation.y = 0;
-      p.pose.orientation.z = 0;
-      p.pose.orientation.w = 1;
-      moveit_msgs::Grasp g;
-      g.grasp_pose = p;
-
-      g.pre_grasp_approach.direction.vector.x = 1.0;
-      g.pre_grasp_approach.direction.header.frame_id = "j2n6s300_end_effector";
-      g.pre_grasp_approach.min_distance = 0.2;
-      g.pre_grasp_approach.desired_distance = 0.4;
-
-      g.post_grasp_retreat.direction.header.frame_id = "root";
-      g.post_grasp_retreat.direction.vector.z = 1.0;
-      g.post_grasp_retreat.min_distance = 0.1;
-      g.post_grasp_retreat.desired_distance = 0.25;
-
-      g.pre_grasp_posture.joint_names.resize(1, "j2n6s300_joint_finger_1");
-      g.pre_grasp_posture.points.resize(1);
-      g.pre_grasp_posture.points[0].positions.resize(1);
-      g.pre_grasp_posture.points[0].positions[0] = 1;
-
-      g.grasp_posture.joint_names.resize(1, "j2n6s300_joint_finger_1");
-      g.grasp_posture.points.resize(1);
-      g.grasp_posture.points[0].positions.resize(1);
-      g.grasp_posture.points[0].positions[0] = 0;
-
-      grasps.push_back(g);
-      group.setSupportSurfaceName("table");
-      group.pick("part", grasps);
-
-
-
-    /*
-
-    std::vector<moveit_msgs::Grasp> grasps;
-
-    // pose of gripper when grasping
-    geometry_msgs::PoseStamped p;
-    //  p.header.frame_id = "root";
-    //  p.pose.position.x = 0.5;
-    //  p.pose.position.y = 0.0;
-    //  p.pose.position.z = 0.13/1.0;
-    //  p.pose.orientation.x = -0.495605587959;
-    //  p.pose.orientation.y = -0.531222403049;
-    //  p.pose.orientation.z = -0.575461030006;
-    //  p.pose.orientation.w = -0.375529646873;
-
-    p.header.stamp = ros::Time::now();
-    p.header.frame_id = "root";
-    p.pose.position.x = 0.5020;
-    p.pose.position.y = -0.3910;
-    p.pose.position.z = 0.4870;
-    p.pose.orientation.x = 0.650062918663;
-    p.pose.orientation.y = 0.319907665253;
-    p.pose.orientation.z = 0.422783970833;
-    p.pose.orientation.w = 0.544362962246;
-
-    moveit_msgs::Grasp g;
-    g.id = "grasp_part";
-    g.grasp_pose = p;
-
-    g.pre_grasp_approach.direction.header.stamp = ros::Time::now();
-    g.pre_grasp_approach.direction.header.frame_id = "j2n6s300_end_effector";
-    g.pre_grasp_approach.direction.vector.x = 0.0;
-    g.pre_grasp_approach.direction.vector.y = 0.0;
-    g.pre_grasp_approach.direction.vector.z = 1.0;
-    g.pre_grasp_approach.min_distance = 0.01;
-    g.pre_grasp_approach.desired_distance = 0.05;
-
-    g.post_grasp_retreat.direction.header.stamp = ros::Time::now();
-    g.post_grasp_retreat.direction.header.frame_id = "j2n6s300_end_effector";
-    g.post_grasp_retreat.direction.vector.x = 0.0;
-    g.post_grasp_retreat.direction.vector.y = 0.0;
-    g.post_grasp_retreat.direction.vector.z = -1.0;
-    g.post_grasp_retreat.min_distance = 0.0;
-    g.post_grasp_retreat.desired_distance = 0.0;
-
-    g.pre_grasp_posture.header.stamp = ros::Time::now();
-    g.pre_grasp_posture.joint_names.resize(1, "j2n6s300_joint_finger_1");
-    g.pre_grasp_posture.points.resize(1);
-    g.pre_grasp_posture.points[0].positions.resize(1);
-    g.pre_grasp_posture.points[0].positions[0] = 0;
-    g.pre_grasp_posture.points[0].time_from_start = ros::Duration(120.0);
-
-    g.grasp_posture.header.stamp = ros::Time::now();
-    g.grasp_posture.joint_names.resize(1, "j2n6s300_joint_finger_1");
-    g.grasp_posture.points.resize(1);
-    g.grasp_posture.points[0].positions.resize(1);
-    g.grasp_posture.points[0].positions[0] = 1.4;
-    g.grasp_posture.points[0].time_from_start = ros::Duration(130.0);
-
-    g.allowed_touch_objects.resize(1);
-    g.allowed_touch_objects[0] = "part";
-
-
-    grasps.push_back(g);
-    //  group.setSupportSurfaceName("table");
-    ROS_DEBUG_STREAM("" << __PRETTY_FUNCTION__ << ", line: " << __LINE__);
-    group.setNumPlanningAttempts(5);
-    group.allowReplanning(true);
-    bool group_pick = group.pick("part", grasps);
-    ROS_DEBUG_STREAM("" << __PRETTY_FUNCTION__ << ", line: " << __LINE__ << std::endl << "group_pick is: " << (group_pick == 1 ? "sccessful" : "failed") );
-    */
+void add_collision_object() {
+  ROS_INFO("Adding collision object.");
+  co.operation = moveit_msgs::CollisionObject::ADD;
+  pub_co.publish(co);
+}
+void remove_collision_object() {
+  ROS_INFO("Removing collision object.");
+  co.operation = moveit_msgs::CollisionObject::REMOVE;
+  pub_co.publish(co);
+}
+void add_attached_collision_object() {
+  ROS_INFO("Adding attached collision object.");
+  aco.object.operation = moveit_msgs::CollisionObject::ADD;
+  pub_aco.publish(aco);
+}
+void remove_attached_collision_object() {
+  ROS_INFO("Removing attached collision object.");
+  aco.object.operation = moveit_msgs::CollisionObject::REMOVE;
+  pub_aco.publish(aco);
 }
 
-void place(moveit::planning_interface::MoveGroup &group)
+moveit_msgs::Grasp tf_transform_to_grasp(tf::Transform t)
 {
-    std::vector<moveit_msgs::PlaceLocation> loc;
+  static int i = 0;
 
+  moveit_msgs::Grasp grasp;
+  geometry_msgs::PoseStamped pose;
+
+  tf::Vector3& origin = t.getOrigin();
+  tf::Quaternion rotation = t.getRotation();
+
+  tf::quaternionTFToMsg(rotation, pose.pose.orientation);
+
+  pose.header.frame_id = "root";
+  pose.header.stamp = ros::Time::now();
+  pose.pose.position.x = origin.m_floats[0];
+  pose.pose.position.y = origin.m_floats[1];
+  pose.pose.position.z = origin.m_floats[2];
+  //pose.pose.orientation.x = 0;
+  //pose.pose.orientation.y = 0;
+  //pose.pose.orientation.z = 0;
+  //pose.pose.orientation.w = 1;
+  grasp.grasp_pose = pose;
+
+  grasp.id = boost::lexical_cast<std::string>(i);
+
+  grasp.pre_grasp_approach.direction.vector.z = 1.0;
+  grasp.pre_grasp_approach.direction.header.frame_id = "j2n6s300_end_effector";
+  grasp.pre_grasp_approach.min_distance = 0.005;
+  grasp.pre_grasp_approach.desired_distance = 0.01;
+  grasp.pre_grasp_approach.direction.header.stamp = ros::Time::now();
+
+  grasp.post_grasp_retreat.direction.vector.z = 1.0;
+  grasp.post_grasp_retreat.min_distance = 0.005;
+  grasp.post_grasp_retreat.desired_distance = 0.01;
+  grasp.post_grasp_retreat.direction.header.frame_id = "root";
+  grasp.post_grasp_retreat.direction.header.stamp = ros::Time::now();
+
+  // TODO: fill in grasp.post_place_retreat (copy of post_grasp_retreat?)
+
+  grasp.pre_grasp_posture.joint_names.push_back("j2n6s300_joint_finger_1");
+  grasp.pre_grasp_posture.joint_names.push_back("j2n6s300_joint_finger_2");
+  grasp.pre_grasp_posture.points.resize(1);
+  grasp.pre_grasp_posture.points[0].positions.push_back(0.3);
+  grasp.pre_grasp_posture.points[0].positions.push_back(0.3);
+
+  grasp.grasp_posture.joint_names.push_back("j2n6s300_joint_finger_1");
+  grasp.grasp_posture.joint_names.push_back("j2n6s300_joint_finger_2");
+  grasp.grasp_posture.points.resize(1);
+  grasp.grasp_posture.points[0].positions.push_back(0.0);
+  grasp.grasp_posture.points[0].positions.push_back(0.0);
+
+  grasp.allowed_touch_objects.resize(1);
+  grasp.allowed_touch_objects[0] = "testbox";
+
+  i++;
+  return grasp;
+}
+
+void publish_grasps_as_markerarray(std::vector<moveit_msgs::Grasp> grasps)
+{
+  visualization_msgs::MarkerArray markers;
+  int i = 0;
+
+  for(std::vector<moveit_msgs::Grasp>::iterator it = grasps.begin(); it != grasps.end(); ++it) {
+    visualization_msgs::Marker marker;
+    marker.header.stamp = ros::Time::now();
+    marker.header.frame_id = "root";
+    marker.id = i;
+    marker.type = 1;
+    marker.ns = "graspmarker";
+    marker.pose = it->grasp_pose.pose;
+    marker.scale.x = 0.02;
+    marker.scale.y = 0.02;
+    marker.scale.z = 0.2;
+    marker.color.b = 1.0;
+    marker.color.a = 1.0;
+    markers.markers.push_back(marker);
+    i++;
+  }
+
+  grasps_marker.publish(markers);
+}
+
+/**
+ * x, y, z: center of grasp point (the point that should be between the finger tips of the gripper)
+ */
+std::vector<moveit_msgs::Grasp> generate_grasps(double x, double y, double z)
+{
+    ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__);
+    ros::WallDuration(5.0).sleep();
+  static const double ANGLE_INC = M_PI / 16;
+  static const double STRAIGHT_ANGLE_MIN = 0.0 + ANGLE_INC;  // + ANGLE_INC, because 0 is already covered by side grasps
+  static const double ANGLE_MAX = M_PI / 2;
+
+  // how far from the grasp center should the wrist be?
+  static const double STANDOFF = -0.01;
+
+  std::vector<moveit_msgs::Grasp> grasps;
+
+  tf::Transform transform;
+
+  tf::Transform standoff_trans;
+  standoff_trans.setOrigin(tf::Vector3(STANDOFF, 0.0, 0.0));
+  standoff_trans.setRotation(tf::Quaternion(0.0, sqrt(2)/2, 0.0, sqrt(2)/2));
+
+  // ----- side grasps
+  //
+  //  1. side grasp (xy-planes of `katana_motor5_wrist_roll_link` and of `katana_base_link` are parallel):
+  //     - standard: `rpy = (0, 0, *)` (orientation of `katana_motor5_wrist_roll_link` in `katana_base_link` frame)
+  //     - overhead: `rpy = (pi, 0, *)`
+  transform.setOrigin(tf::Vector3(x, y, z));
+
+  for (double roll = 0.0; roll <= M_PI; roll += M_PI)
+  {
+    double pitch = 0.0;
+
+    // add yaw = 0 first, then +ANGLE_INC, -ANGLE_INC, 2*ANGLE_INC, ...
+    // reason: grasps with yaw near 0 mean that the approach is from the
+    // direction of the arm; it is usually easier to place the object back like
+    // this
+    for (double yaw = ANGLE_INC; yaw <= ANGLE_MAX; yaw += ANGLE_INC)
+    {
+      // + atan2 to center the grasps around the vector from arm to object
+      transform.setRotation(tf::createQuaternionFromRPY(roll, pitch, yaw + atan2(y, x)));
+      grasps.push_back(tf_transform_to_grasp(transform * standoff_trans));
+      if (yaw != 0.0)
+      {
+        transform.setRotation(tf::createQuaternionFromRPY(roll, pitch, -yaw + atan2(y, x)));
+        grasps.push_back(tf_transform_to_grasp(transform * standoff_trans));
+      }
+    }
+  }
+
+  // ----- straight grasps
+  //
+  //  2. straight grasp (xz-plane of `katana_motor5_wrist_roll_link` contains z axis of `katana_base_link`)
+  //     - standard: `rpy = (0, *, atan2(y_w, x_w))`   (x_w, y_w = position of `katana_motor5_wrist_roll_link` in `katana_base_link` frame)
+  //     - overhead: `rpy = (pi, *, atan2(y_w, x_w))`
+  for (double roll = 0.0; roll <= M_PI; roll += M_PI)
+  {
+    for (double pitch = STRAIGHT_ANGLE_MIN; pitch <= ANGLE_MAX; pitch += ANGLE_INC)
+    {
+      double yaw = atan2(y, x);
+      transform.setOrigin(tf::Vector3(x, y, z));
+      transform.setRotation(tf::createQuaternionFromRPY(roll, pitch, yaw));
+
+      grasps.push_back(tf_transform_to_grasp(transform * standoff_trans));
+    }
+  }
+
+  publish_grasps_as_markerarray(grasps);
+  ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__);
+  ros::WallDuration(1.0).sleep();
+  return grasps;
+}
+
+bool place(moveit::planning_interface::MoveGroup &group)
+{
+  static const double ANGLE_INC = M_PI / 16;
+
+  std::vector<moveit_msgs::PlaceLocation> loc;
+
+  for (double yaw = -M_PI; yaw < M_PI; yaw += ANGLE_INC)
+  {
+      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__);
+      ros::WallDuration(1.0).sleep();
     geometry_msgs::PoseStamped p;
     p.header.frame_id = "root";
-    p.pose.position.x = 0.7;
-    p.pose.position.y = 0.0;
-    p.pose.position.z = 0.5;
-    p.pose.orientation.x = 0;
-    p.pose.orientation.y = 0;
-    p.pose.orientation.z = 0;
-    p.pose.orientation.w = 1;
+    p.pose.position.x = 0.21;
+    p.pose.position.y = 0.115;
+    p.pose.position.z = 0.78;
+    tf::quaternionTFToMsg(tf::createQuaternionFromRPY(0.0, 0.0, yaw), p.pose.orientation);
+
     moveit_msgs::PlaceLocation g;
     g.place_pose = p;
 
     g.pre_place_approach.direction.vector.z = -1.0;
-    g.post_place_retreat.direction.vector.x = -1.0;
-    g.post_place_retreat.direction.header.frame_id = "root";
-    g.pre_place_approach.direction.header.frame_id = "r_wrist_roll_link";
-    g.pre_place_approach.min_distance = 0.1;
-    g.pre_place_approach.desired_distance = 0.2;
-    g.post_place_retreat.min_distance = 0.1;
-    g.post_place_retreat.desired_distance = 0.25;
+    g.pre_place_approach.direction.header.frame_id = "base_link";
+    g.pre_place_approach.min_distance = 0.05;
+    g.pre_place_approach.desired_distance = 0.1;
 
-    g.post_place_posture.joint_names.resize(1, "r_gripper_joint");
+    g.post_place_retreat.direction.vector.z = 1.0;
+    g.post_place_retreat.direction.header.frame_id = "base_link";
+    g.post_place_retreat.min_distance = 0.05;
+    g.post_place_retreat.desired_distance = 0.1;
+
+    g.post_place_posture.joint_names.push_back("katana_l_finger_joint");
+    g.post_place_posture.joint_names.push_back("katana_r_finger_joint");
     g.post_place_posture.points.resize(1);
-    g.post_place_posture.points[0].positions.resize(1);
-    g.post_place_posture.points[0].positions[0] = 1;
+    g.post_place_posture.points[0].positions.push_back(0.3);
+    g.post_place_posture.points[0].positions.push_back(0.3);
+
+    // not sure whether we need this
+    g.allowed_touch_objects.resize(1);
+    g.allowed_touch_objects[0] = "testbox";
 
     loc.push_back(g);
-    group.setSupportSurfaceName("table");
+  }
 
+  group.setSupportSurfaceName("cup");
 
-    // add path constraints
-    moveit_msgs::Constraints constr;
-    constr.orientation_constraints.resize(1);
-    moveit_msgs::OrientationConstraint &ocm = constr.orientation_constraints[0];
-    ocm.link_name = "r_wrist_roll_link";
-    ocm.header.frame_id = p.header.frame_id;
-    ocm.orientation.x = 0.0;
-    ocm.orientation.y = 0.0;
-    ocm.orientation.z = 0.0;
-    ocm.orientation.w = 1.0;
-    ocm.absolute_x_axis_tolerance = 0.2;
-    ocm.absolute_y_axis_tolerance = 0.2;
-    ocm.absolute_z_axis_tolerance = M_PI;
-    ocm.weight = 1.0;
-    //  group.setPathConstraints(constr);
-    group.setPlannerId("RRTConnectkConfigDefault");
-
-    group.place("part", loc);
+  return group.place("testbox", loc);
 }
 
-int main(int argc, char **argv)
-{
-    ros::init (argc, argv, "my_pick_place");
-    ros::AsyncSpinner spinner(1);
-    spinner.start();
+int main(int argc, char **argv) {
+  ros::init (argc, argv, "calvin_pickdemo");
+  ros::NodeHandle nh;
+  ros::AsyncSpinner spinner(1);
+  spinner.start();
 
-        std::string pause;
+  pub_co = nh.advertise<moveit_msgs::CollisionObject>("collision_object", 10);
+  pub_aco = nh.advertise<moveit_msgs::AttachedCollisionObject>("attached_collision_object", 10);
+  grasps_marker = nh.advertise<visualization_msgs::MarkerArray>("grasps_marker", 10);
 
-    if(ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug))
-    {
-        ros::console::notifyLoggerLevelsChanged();
-    }
+  moveit::planning_interface::MoveGroup group("arm");
+  group.setPlanningTime(45.0);
 
-    ros::NodeHandle nh;
-    ros::Publisher pub_co = nh.advertise<moveit_msgs::CollisionObject>("collision_object", 10);
-    ros::Publisher pub_aco = nh.advertise<moveit_msgs::AttachedCollisionObject>("attached_collision_object", 10);
+  double x = 0.5;
+  double y = 0.0;
+  double z = 0.77;
 
-    ros::WallDuration(1.0).sleep();
+  co.header.stamp = ros::Time::now();
+  co.header.frame_id = "root";
+  co.id = "testbox";
+  co.primitives.resize(1);
+  co.primitives[0].type = shape_msgs::SolidPrimitive::BOX;
+  co.primitives[0].dimensions.resize(geometric_shapes::SolidPrimitiveDimCount<shape_msgs::SolidPrimitive::BOX>::value);
+  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.04;
+  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.055;
+  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.08;
+  co.primitive_poses.resize(1);
+  co.primitive_poses[0].position.x = x;
+  co.primitive_poses[0].position.y = y;
+  co.primitive_poses[0].position.z = z;
+  co.primitive_poses[0].orientation.w = 1.0;
 
-    moveit::planning_interface::MoveGroup group("arm");
-    group.setPlanningTime(360.0);
+  aco.object = co;
+  aco.link_name = "j2n6s300_end_effector";
 
-    ros::WallDuration(1.0).sleep();
+  add_collision_object();
 
-    // send robot to home position
-    group.setNamedTarget("Home");
-    group.move();
-    ros::WallDuration(1.0).sleep();
-    ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": send robot to home position");
+  ros::WallDuration(1.0).sleep();
 
-    moveit_msgs::CollisionObject co;
-    co.header.stamp = ros::Time::now();
-    co.header.frame_id = "root";
+  ROS_INFO("Trying to pick");
 
-//    ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": no publishing ");
-//    std::cin >> pause;
+  // TODO: group.setSupportSurfaceName("table");     // needed to specify that attached object is allowed to touch table
+  std::vector<moveit_msgs::Grasp> temp = generate_grasps(x, y, z);
+  ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__);
+  ros::WallDuration(15.0).sleep();
+  bool success = group.pick(co.id, temp);
+  ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__);
+  ros::WallDuration(15.0).sleep();
+  if (success)
+    ROS_INFO("Pick was successful.");
+  else
+  {
+    ROS_FATAL("Pick failed.");
+    return EXIT_FAILURE;
+  }
 
-    // remove pole
-      co.id = "pole";
-      co.operation = moveit_msgs::CollisionObject::REMOVE;
-      pub_co.publish(co);
-//      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove pole ");
-//      std::cin >> pause;
+  ros::WallDuration(1.0).sleep();
 
-      // add pole
-      co.operation = moveit_msgs::CollisionObject::ADD;
-      co.primitives.resize(1);
-      co.primitives[0].type = shape_msgs::SolidPrimitive::BOX;
-      co.primitives[0].dimensions.resize(geometric_shapes::SolidPrimitiveDimCount<shape_msgs::SolidPrimitive::BOX>::value);
-      co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.3;
-      co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.1;
-      co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 1.0;
-      co.primitive_poses.resize(1);
-      co.primitive_poses[0].position.x = 0.7;
-      co.primitive_poses[0].position.y = 0.0; // -0.4
-      co.primitive_poses[0].position.z = 0.85;
-      co.primitive_poses[0].orientation.w = 1.0;
-      pub_co.publish(co);
-//      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": ADD pole ");
-//      std::cin >> pause;
+//  ROS_INFO("Placing object in muffin holder");
+//  success &= place(group);
 
+//  // attach object to muffin holder link (TODO: update pose to current pose of object)
+//  aco.link_name = "cup";
+//  add_attached_collision_object();
 
-      // remove table
-      co.id = "table";
-      co.operation = moveit_msgs::CollisionObject::REMOVE;
-      pub_co.publish(co);
-//      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove table ");
-//      std::cin >> pause;
+  ROS_INFO("Moving arm to arm_far_away pose");
+  group.setNamedTarget("arm_far_away");
+  success &= group.move();
+  ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__);
+  ros::WallDuration(5.0).sleep();
+  if (success)
+  {
+    ROS_INFO("Done.");
+    return EXIT_SUCCESS;
+  }
+  else
+  {
+    ROS_ERROR("One of the moves failed!");
+    return EXIT_FAILURE;
 
-      // add table
-      co.operation = moveit_msgs::CollisionObject::ADD;
-      co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.5;
-      co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 1.5;
-      co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.35;
-      co.primitive_poses[0].position.x = 0.7;
-      co.primitive_poses[0].position.y = -0.2;
-      co.primitive_poses[0].position.z = 0.175;
-      pub_co.publish(co);
-//      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": ADD table ");
-//      std::cin >> pause;
-
-      co.id = "part";
-      co.operation = moveit_msgs::CollisionObject::REMOVE;
-      pub_co.publish(co);
-//      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove part in co ");
-//      std::cin >> pause;
-
-      moveit_msgs::AttachedCollisionObject aco;
-      aco.object = co;
-      pub_aco.publish(aco);
-//      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove part in aco ");
-//      std::cin >> pause;
-
-
-      co.operation = moveit_msgs::CollisionObject::ADD;
-      co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.15;
-      co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.1;
-      co.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.3;
-
-      co.primitive_poses[0].position.x = 0.6;
-      co.primitive_poses[0].position.y = -0.3; // -0.7
-      co.primitive_poses[0].position.z = 0.5;
-      pub_co.publish(co);
-
-//      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": add part in co ");
-//      std::cin >> pause;
-
-
-
-    // try pick and place
-    ROS_WARN_STREAM("going to pick, and press any key to continue");
-    std::cin >> pause;
-
-//    // wait a bit for ros things to initialize
-//    ros::WallDuration(1.0).sleep();
-//    ROS_DEBUG_STREAM("" << __PRETTY_FUNCTION__ << ", line: " << __LINE__);
-    pick(group);
-//    ROS_DEBUG_STREAM("" << __PRETTY_FUNCTION__ << ", line: " << __LINE__);
-//    ros::WallDuration(1.0).sleep();
-
-    //  place(group);
-
-//    ros::waitForShutdown();
-    ros::WallDuration(1.0).sleep();
-    ros::shutdown();
-    return 0;
+  }
 }
