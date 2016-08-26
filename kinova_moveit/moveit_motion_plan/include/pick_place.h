@@ -54,7 +54,7 @@ namespace kinova
 
         void build_workscene();
         geometry_msgs::PoseStamped define_grasp_pose();
-        geometry_msgs::PoseStamped generate_pregrasp_pose();
+        geometry_msgs::PoseStamped generate_pregrasp_pose(geometry_msgs::Pose grasp_pose, double dist, double azimuth, double polar, double rot_gripper_z);
         geometry_msgs::PoseStamped generate_postgrasp_pose();
         bool my_pick(moveit::planning_interface::MoveGroup &group, moveit::planning_interface::MoveGroup &gripper_group);
         bool my_place(moveit::planning_interface::MoveGroup &group, moveit::planning_interface::MoveGroup &gripper_group);

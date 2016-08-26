@@ -37,9 +37,13 @@ PickPlace::PickPlace(ros::NodeHandle &nh, moveit::planning_interface::MoveGroup 
 
     ros::WallDuration(1.0).sleep();
 
-    // pick process
-    result_ = false;
+//    // pick process
+//    result_ = false;
     result_ = my_pick(group, gripper_group);
+
+    // check pregrasp pose
+//    geometry_msgs::PoseStamped grasp_pose = define_grasp_pose();
+//    geometry_msgs::PoseStamped pregrasp_pose = generate_pregrasp_pose(grasp_pose.pose,0.01, 0.0, M_PI/2, 0.0);
 
 }
 
@@ -151,18 +155,46 @@ geometry_msgs::PoseStamped define_grasp_pose()
     return grasp_pose;
 }
 
-geometry_msgs::PoseStamped generate_pregrasp_pose()
+/**
+ * @brief generate_pregrasp_pose
+ * @param grasp_pose the pose where gripper close the fingers (expect to grasp the object)
+ * @param dist radius, distance of pregrasp_pose to grasp_pose
+ * @param azimuth an angle measured from the x-axis in the xy-plane in spherical coordinates, denoted theta (0<= theta < 2pi ).
+ * @param polar also named zenith, colatitude, denoted phi (0<=phi<=pi). It is the angle from the positive z-axis to the vector.  phi= pi/2 - delta where delta is the latitude.
+ * @param rot_gripper_z rotation along the z axis of the gripper reference frame (last joint rotation)
+ * @return pregrasp_pose
+ */
+geometry_msgs::PoseStamped generate_pregrasp_pose(geometry_msgs::Pose grasp_pose, double dist, double azimuth, double polar, double rot_gripper_z)
 {
     geometry_msgs::PoseStamped pregrasp_pose;
     pregrasp_pose.header.frame_id = "root";
 
-    pregrasp_pose.pose.position.x = 0.416036397219;
-    pregrasp_pose.pose.position.y = -0.285465538502;
-    pregrasp_pose.pose.position.z = 0.507134079933;
-    pregrasp_pose.pose.orientation.x = 0.572861850262;
-    pregrasp_pose.pose.orientation.y = 0.402622461319;
-    pregrasp_pose.pose.orientation.z = 0.51812005043;
-    pregrasp_pose.pose.orientation.w = 0.491198539734;
+    // computer pregrasp position w.r.t. location of grasp_pose in spherical coordinate. Orientation is w.r.t. fixed world (root) reference frame.
+    double delta_x = dist * cos(azimuth) * sin(polar);
+    double delta_y = dist * sin(azimuth) * sin(polar);
+    double delta_z = dist * cos(polar);
+
+    // computer the orientation of gripper w.r.t. fixed world (root) reference frame. The gripper (z axis) should point(open) to the grasp_pose.
+    tf::Quaternion q;
+    tf::Matrix3x3 rot_matrix, rot_matrix_gripper_z;
+
+    // pointing to grasp pose
+    rot_matrix.setEulerZYX(azimuth, polar, M_PI);
+    // rotate by rot_gripper_z
+    rot_matrix_gripper_z.setEulerZYX(rot_gripper_z, 0, 0);
+    // rot_matrix = rot_matrix * rot_matrix_gripper_z;
+    rot_matrix *= rot_matrix_gripper_z;
+    rot_matrix.getRotation(q);
+
+    pregrasp_pose.pose.position.x = grasp_pose.position.x + delta_x;
+    pregrasp_pose.pose.position.y = grasp_pose.position.y + delta_y;
+    pregrasp_pose.pose.position.z = grasp_pose.position.z + delta_z;
+    pregrasp_pose.pose.orientation.x = q.x();
+    pregrasp_pose.pose.orientation.y = q.y();
+    pregrasp_pose.pose.orientation.z = q.z();
+    pregrasp_pose.pose.orientation.w = q.w();
+
+    ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << "pregrasp_pose: x " << pregrasp_pose.pose.position.x  << ", y " << pregrasp_pose.pose.position.y  << ", z " << pregrasp_pose.pose.position.z  << ", qx " << pregrasp_pose.pose.orientation.x  << ", qy " << pregrasp_pose.pose.orientation.y  << ", qz " << pregrasp_pose.pose.orientation.z  << ", qw " << pregrasp_pose.pose.orientation.w );
 
     return pregrasp_pose;
 }
