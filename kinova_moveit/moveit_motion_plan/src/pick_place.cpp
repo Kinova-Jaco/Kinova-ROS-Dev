@@ -39,11 +39,14 @@ PickPlace::PickPlace(ros::NodeHandle &nh, moveit::planning_interface::MoveGroup 
 
 //    // pick process
 //    result_ = false;
-    result_ = my_pick(group, gripper_group);
+//    result_ = my_pick(group, gripper_group);
 
     // check pregrasp pose
-//    geometry_msgs::PoseStamped grasp_pose = define_grasp_pose();
-//    geometry_msgs::PoseStamped pregrasp_pose = generate_pregrasp_pose(grasp_pose.pose,0.01, 0.0, M_PI/2, 0.0);
+    define_grasp_pose();
+
+    ros::WallDuration(1.0).sleep();
+
+    generate_pregrasp_pose(0.01, 0.0, 0.0, 0.0);
 
 }
 
@@ -57,6 +60,9 @@ PickPlace::~PickPlace()
 void PickPlace::build_workscene()
 {
     std::string pause;
+    co_.header.frame_id = "root";
+    co_.header.stamp = ros::Time::now();
+
     // remove pole
     co_.id = "pole";
     co_.operation = moveit_msgs::CollisionObject::REMOVE;
@@ -139,20 +145,19 @@ void PickPlace::build_workscene()
 //          std::cin >> pause;
 }
 
-geometry_msgs::PoseStamped define_grasp_pose()
+
+void PickPlace::define_grasp_pose()
 {
-    geometry_msgs::PoseStamped grasp_pose;
-    grasp_pose.header.frame_id = "root";
+    grasp_pose_.header.frame_id = "root";
+    grasp_pose_.header.stamp  = ros::Time::now();
 
-    grasp_pose.pose.position.x = 0.416036397219;
-    grasp_pose.pose.position.y = -0.285465538502;
-    grasp_pose.pose.position.z = 0.507134079933;
-    grasp_pose.pose.orientation.x = 0.572861850262;
-    grasp_pose.pose.orientation.y = 0.402622461319;
-    grasp_pose.pose.orientation.z = 0.51812005043;
-    grasp_pose.pose.orientation.w = 0.491198539734;
-
-    return grasp_pose;
+    grasp_pose_.pose.position.x = 0.416036397219;
+    grasp_pose_.pose.position.y = -0.285465538502;
+    grasp_pose_.pose.position.z = 0.507134079933;
+    grasp_pose_.pose.orientation.x = 0.572861850262;
+    grasp_pose_.pose.orientation.y = 0.402622461319;
+    grasp_pose_.pose.orientation.z = 0.51812005043;
+    grasp_pose_.pose.orientation.w = 0.491198539734;
 }
 
 /**
@@ -164,10 +169,9 @@ geometry_msgs::PoseStamped define_grasp_pose()
  * @param rot_gripper_z rotation along the z axis of the gripper reference frame (last joint rotation)
  * @return pregrasp_pose
  */
-geometry_msgs::PoseStamped generate_pregrasp_pose(geometry_msgs::Pose grasp_pose, double dist, double azimuth, double polar, double rot_gripper_z)
+void PickPlace::generate_pregrasp_pose(double dist, double azimuth, double polar, double rot_gripper_z)
 {
-    geometry_msgs::PoseStamped pregrasp_pose;
-    pregrasp_pose.header.frame_id = "root";
+    pregrasp_pose_.header.frame_id = "root";
 
     // computer pregrasp position w.r.t. location of grasp_pose in spherical coordinate. Orientation is w.r.t. fixed world (root) reference frame.
     double delta_x = dist * cos(azimuth) * sin(polar);
@@ -186,17 +190,16 @@ geometry_msgs::PoseStamped generate_pregrasp_pose(geometry_msgs::Pose grasp_pose
     rot_matrix *= rot_matrix_gripper_z;
     rot_matrix.getRotation(q);
 
-    pregrasp_pose.pose.position.x = grasp_pose.position.x + delta_x;
-    pregrasp_pose.pose.position.y = grasp_pose.position.y + delta_y;
-    pregrasp_pose.pose.position.z = grasp_pose.position.z + delta_z;
-    pregrasp_pose.pose.orientation.x = q.x();
-    pregrasp_pose.pose.orientation.y = q.y();
-    pregrasp_pose.pose.orientation.z = q.z();
-    pregrasp_pose.pose.orientation.w = q.w();
+    pregrasp_pose_.pose.position.x = grasp_pose_.pose.position.x + delta_x;
+    pregrasp_pose_.pose.position.y = grasp_pose_.pose.position.y + delta_y;
+    pregrasp_pose_.pose.position.z = grasp_pose_.pose.position.z + delta_z;
+    pregrasp_pose_.pose.orientation.x = q.x();
+    pregrasp_pose_.pose.orientation.y = q.y();
+    pregrasp_pose_.pose.orientation.z = q.z();
+    pregrasp_pose_.pose.orientation.w = q.w();
 
-    ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << "pregrasp_pose: x " << pregrasp_pose.pose.position.x  << ", y " << pregrasp_pose.pose.position.y  << ", z " << pregrasp_pose.pose.position.z  << ", qx " << pregrasp_pose.pose.orientation.x  << ", qy " << pregrasp_pose.pose.orientation.y  << ", qz " << pregrasp_pose.pose.orientation.z  << ", qw " << pregrasp_pose.pose.orientation.w );
+    ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << "pregrasp_pose_: x " << pregrasp_pose_.pose.position.x  << ", y " << pregrasp_pose_.pose.position.y  << ", z " << pregrasp_pose_.pose.position.z  << ", qx " << pregrasp_pose_.pose.orientation.x  << ", qy " << pregrasp_pose_.pose.orientation.y  << ", qz " << pregrasp_pose_.pose.orientation.z  << ", qw " << pregrasp_pose_.pose.orientation.w );
 
-    return pregrasp_pose;
 }
 
 
@@ -237,6 +240,7 @@ void PickPlace::getInvK(geometry_msgs::Pose &eef_pose, std::vector<double> &join
 {
 
 }
+
 
 int main(int argc, char **argv)
 {

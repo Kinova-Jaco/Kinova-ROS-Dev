@@ -47,14 +47,20 @@ namespace kinova
         std::vector<double> joint_values_;
 
         // use Kinova Inverse Kinematic model to generate joint value, then setJointTarget().
-        bool use_KinovaInK;
+        bool use_KinovaInK_;
 
         // check some process if success.
         bool result_;
 
+
+        //
+        geometry_msgs::PoseStamped grasp_pose_;
+        geometry_msgs::PoseStamped pregrasp_pose_;
+        geometry_msgs::PoseStamped postgrasp_pose_;
+
         void build_workscene();
-        geometry_msgs::PoseStamped define_grasp_pose();
-        geometry_msgs::PoseStamped generate_pregrasp_pose(geometry_msgs::Pose grasp_pose, double dist, double azimuth, double polar, double rot_gripper_z);
+        void define_grasp_pose();
+        void generate_pregrasp_pose(double dist, double azimuth, double polar, double rot_gripper_z);
         geometry_msgs::PoseStamped generate_postgrasp_pose();
         bool my_pick(moveit::planning_interface::MoveGroup &group, moveit::planning_interface::MoveGroup &gripper_group);
         bool my_place(moveit::planning_interface::MoveGroup &group, moveit::planning_interface::MoveGroup &gripper_group);
