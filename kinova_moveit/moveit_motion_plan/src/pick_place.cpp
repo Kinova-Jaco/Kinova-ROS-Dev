@@ -3,6 +3,43 @@
 
 using namespace kinova;
 
+tf::Matrix3x3 rot_x(double tx)
+{
+    tf::Matrix3x3 mat;
+    mat.setEulerZYX(0.0, 0.0, tx);
+//    ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << std::endl << "rot_x 1st row : " << mat.getRow(0).getX() << ", " << mat.getRow(0).getY() << ", " << mat.getRow(0).getZ() << ", "  << std::endl << "rot_x 2nd row : " << mat.getRow(1).getX() << ", " << mat.getRow(1).getY() << ", " << mat.getRow(1).getZ() << ", "  << std::endl << "rot_x 3rd row : " << mat.getRow(2).getX() << ", " << mat.getRow(2).getY() << ", " << mat.getRow(2).getZ());
+    return mat;
+}
+
+tf::Matrix3x3 rot_y(double ty)
+{
+    tf::Matrix3x3 mat;
+    mat.setEulerZYX(0.0, ty, 0.0);
+//    ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << std::endl << "rot_x 1st row : " << mat.getRow(0).getX() << ", " << mat.getRow(0).getY() << ", " << mat.getRow(0).getZ() << ", "  << std::endl << "rot_x 2nd row : " << mat.getRow(1).getX() << ", " << mat.getRow(1).getY() << ", " << mat.getRow(1).getZ() << ", "  << std::endl << "rot_x 3rd row : " << mat.getRow(2).getX() << ", " << mat.getRow(2).getY() << ", " << mat.getRow(2).getZ());
+    return mat;
+}
+
+tf::Matrix3x3 rot_z(double tz)
+{
+    tf::Matrix3x3 mat;
+    mat.setEulerZYX(tz, 0.0, 0.0);
+//    ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << std::endl << "rot_x 1st row : " << mat.getRow(0).getX() << ", " << mat.getRow(0).getY() << ", " << mat.getRow(0).getZ() << ", "  << std::endl << "rot_x 2nd row : " << mat.getRow(1).getX() << ", " << mat.getRow(1).getY() << ", " << mat.getRow(1).getZ() << ", "  << std::endl << "rot_x 3rd row : " << mat.getRow(2).getX() << ", " << mat.getRow(2).getY() << ", " << mat.getRow(2).getZ());
+    return mat;
+}
+
+tf::Matrix3x3 setEulerZYZ(double z1, double y, double z2)
+{
+    tf::Matrix3x3 mat;
+    mat.setIdentity();
+    mat *=rot_z(z1);
+    mat *=rot_y(y);
+    mat *=rot_z(z2);
+//    ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << std::endl << "rot_x 1st row : " << mat.getRow(0).getX() << ", " << mat.getRow(0).getY() << ", " << mat.getRow(0).getZ() << ", "  << std::endl << "rot_x 2nd row : " << mat.getRow(1).getX() << ", " << mat.getRow(1).getY() << ", " << mat.getRow(1).getZ() << ", "  << std::endl << "rot_x 3rd row : " << mat.getRow(2).getX() << ", " << mat.getRow(2).getY() << ", " << mat.getRow(2).getZ());
+    return mat;
+}
+
+
+
 PickPlace::PickPlace(ros::NodeHandle &nh, moveit::planning_interface::MoveGroup &group, moveit::planning_interface::MoveGroup &gripper_group):
     nh_(nh)
 {
@@ -41,12 +78,12 @@ PickPlace::PickPlace(ros::NodeHandle &nh, moveit::planning_interface::MoveGroup 
 //    result_ = false;
 //    result_ = my_pick(group, gripper_group);
 
-    // check pregrasp pose
     define_grasp_pose();
 
     ros::WallDuration(1.0).sleep();
 
-    generate_pregrasp_pose(0.01, 0.0, 0.0, 0.0);
+    // generate_pregrasp_pose(double dist, double azimuth, double polar, double rot_gripper_z)
+    generate_pregrasp_pose(0.1, M_PI/4, M_PI/2, M_PI/2);
 
 }
 
@@ -174,20 +211,16 @@ void PickPlace::generate_pregrasp_pose(double dist, double azimuth, double polar
     pregrasp_pose_.header.frame_id = "root";
 
     // computer pregrasp position w.r.t. location of grasp_pose in spherical coordinate. Orientation is w.r.t. fixed world (root) reference frame.
-    double delta_x = dist * cos(azimuth) * sin(polar);
-    double delta_y = dist * sin(azimuth) * sin(polar);
-    double delta_z = dist * cos(polar);
+    double delta_x = -dist * cos(azimuth) * sin(polar);
+    double delta_y = -dist * sin(azimuth) * sin(polar);
+    double delta_z = -dist * cos(polar);
 
     // computer the orientation of gripper w.r.t. fixed world (root) reference frame. The gripper (z axis) should point(open) to the grasp_pose.
     tf::Quaternion q;
-    tf::Matrix3x3 rot_matrix, rot_matrix_gripper_z;
+    tf::Matrix3x3 rot_matrix;
 
-    // pointing to grasp pose
-    rot_matrix.setEulerZYX(azimuth, polar, M_PI);
-    // rotate by rot_gripper_z
-    rot_matrix_gripper_z.setEulerZYX(rot_gripper_z, 0, 0);
-    // rot_matrix = rot_matrix * rot_matrix_gripper_z;
-    rot_matrix *= rot_matrix_gripper_z;
+    // pointing to grasp pose and rotate by rot_gripper_z
+    rot_matrix = setEulerZYZ(azimuth, polar, rot_gripper_z);
     rot_matrix.getRotation(q);
 
     pregrasp_pose_.pose.position.x = grasp_pose_.pose.position.x + delta_x;
@@ -198,13 +231,23 @@ void PickPlace::generate_pregrasp_pose(double dist, double azimuth, double polar
     pregrasp_pose_.pose.orientation.z = q.z();
     pregrasp_pose_.pose.orientation.w = q.w();
 
-    ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << "pregrasp_pose_: x " << pregrasp_pose_.pose.position.x  << ", y " << pregrasp_pose_.pose.position.y  << ", z " << pregrasp_pose_.pose.position.z  << ", qx " << pregrasp_pose_.pose.orientation.x  << ", qy " << pregrasp_pose_.pose.orientation.y  << ", qz " << pregrasp_pose_.pose.orientation.z  << ", qw " << pregrasp_pose_.pose.orientation.w );
+    ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << "pregrasp_pose_: x " << pregrasp_pose_.pose.position.x  << ", y " << pregrasp_pose_.pose.position.y  << ", z " << pregrasp_pose_.pose.position.z  << ", qx " << pregrasp_pose_.pose.orientation.x  << ", qy " << pregrasp_pose_.pose.orientation.y  << ", qz " << pregrasp_pose_.pose.orientation.z  << ", qw " << pregrasp_pose_.pose.orientation.w );
 
 }
 
 
 bool PickPlace::my_pick(moveit::planning_interface::MoveGroup &group, moveit::planning_interface::MoveGroup &gripper_group)
 {
+    // check pregrasp pose
+    define_grasp_pose();
+
+    ros::WallDuration(1.0).sleep();
+
+    generate_pregrasp_pose(0.01, 0.0, M_PI/2, M_PI/2);
+
+
+    // joint space
+
     std::vector<double> grasp_pose_joint;
     grasp_pose_joint.resize(joint_names_.size());
 //    getInvK(grasp_pose, grasp_pose_joint);
