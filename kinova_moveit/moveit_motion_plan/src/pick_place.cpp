@@ -55,16 +55,10 @@ PickPlace::PickPlace(ros::NodeHandle &nh, moveit::planning_interface::MoveGroup 
 
     ros::WallDuration(1.0).sleep();
 
-//    // pick process
-//    result_ = false;
-//    result_ = my_pick(group, gripper_group);
+    // pick process
+    result_ = false;
+    result_ = my_pick(group, gripper_group);
 
-    define_grasp_pose();
-
-    ros::WallDuration(1.0).sleep();
-
-    // generate_pregrasp_pose(double dist, double azimuth, double polar, double rot_gripper_z)
-    generate_pregrasp_pose(0.1, -M_PI/4, M_PI/2, M_PI/2);
 
 }
 
@@ -179,18 +173,21 @@ void PickPlace::define_grasp_pose()
     grasp_pose_.pose.orientation.w = 0.653281;
 }
 
+
 /**
- * @brief generate_pregrasp_pose
- * @param grasp_pose the pose where gripper close the fingers (expect to grasp the object)
- * @param dist radius, distance of pregrasp_pose to grasp_pose
+ * @brief PickPlace::generate_gripper_align_pose
+ * @param targetpose_msg pick/place pose (object location): where gripper close/open the fingers (grasp/release the object). Only position information is used.
+ * @param dist distance of returned pose to targetpose
  * @param azimuth an angle measured from the x-axis in the xy-plane in spherical coordinates, denoted theta (0<= theta < 2pi ).
  * @param polar also named zenith, colatitude, denoted phi (0<=phi<=pi). It is the angle from the positive z-axis to the vector.  phi= pi/2 - delta where delta is the latitude.
  * @param rot_gripper_z rotation along the z axis of the gripper reference frame (last joint rotation)
- * @return pregrasp_pose
+ * @return a pose defined in a spherical coordinates where origin is located at the target pose. Normally it is a pre_grasp/post_realease pose, where gripper axis (last joint axis) is pointing to the object (target_pose).
  */
-void PickPlace::generate_pregrasp_pose(double dist, double azimuth, double polar, double rot_gripper_z)
+geometry_msgs::PoseStamped PickPlace::generate_gripper_align_pose(geometry_msgs::PoseStamped targetpose_msg, double dist, double azimuth, double polar, double rot_gripper_z)
 {
-    pregrasp_pose_.header.frame_id = "root";
+    geometry_msgs::PoseStamped pose_msg;
+
+    pose_msg.header.frame_id = "root";
 
     // computer pregrasp position w.r.t. location of grasp_pose in spherical coordinate. Orientation is w.r.t. fixed world (root) reference frame.
     double delta_x = -dist * cos(azimuth) * sin(polar);
@@ -205,42 +202,97 @@ void PickPlace::generate_pregrasp_pose(double dist, double azimuth, double polar
     rot_matrix = setEulerZYZ(azimuth, polar, rot_gripper_z);
     rot_matrix.getRotation(q);
 
-    pregrasp_pose_.pose.position.x = grasp_pose_.pose.position.x + delta_x;
-    pregrasp_pose_.pose.position.y = grasp_pose_.pose.position.y + delta_y;
-    pregrasp_pose_.pose.position.z = grasp_pose_.pose.position.z + delta_z;
-    pregrasp_pose_.pose.orientation.x = q.x();
-    pregrasp_pose_.pose.orientation.y = q.y();
-    pregrasp_pose_.pose.orientation.z = q.z();
-    pregrasp_pose_.pose.orientation.w = q.w();
+    pose_msg.pose.position.x = targetpose_msg.pose.position.x + delta_x;
+    pose_msg.pose.position.y = targetpose_msg.pose.position.y + delta_y;
+    pose_msg.pose.position.z = targetpose_msg.pose.position.z + delta_z;
+    pose_msg.pose.orientation.x = q.x();
+    pose_msg.pose.orientation.y = q.y();
+    pose_msg.pose.orientation.z = q.z();
+    pose_msg.pose.orientation.w = q.w();
 
-    ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << "pregrasp_pose_: x " << pregrasp_pose_.pose.position.x  << ", y " << pregrasp_pose_.pose.position.y  << ", z " << pregrasp_pose_.pose.position.z  << ", qx " << pregrasp_pose_.pose.orientation.x  << ", qy " << pregrasp_pose_.pose.orientation.y  << ", qz " << pregrasp_pose_.pose.orientation.z  << ", qw " << pregrasp_pose_.pose.orientation.w );
+    ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << "pose_msg: x " << pose_msg.pose.position.x  << ", y " << pose_msg.pose.position.y  << ", z " << pose_msg.pose.position.z  << ", qx " << pose_msg.pose.orientation.x  << ", qy " << pose_msg.pose.orientation.y  << ", qz " << pose_msg.pose.orientation.z  << ", qw " << pose_msg.pose.orientation.w );
+
+    return pose_msg;
 
 }
 
 
 bool PickPlace::my_pick(moveit::planning_interface::MoveGroup &group, moveit::planning_interface::MoveGroup &gripper_group)
 {
-    // check pregrasp pose
-//    define_grasp_pose();
 
-//    ros::WallDuration(1.0).sleep();
+    define_grasp_pose();
 
-//    generate_pregrasp_pose(0.01, 0.0, M_PI/2, M_PI/2);
+    ros::WallDuration(1.0).sleep();
+
+    // generate_pregrasp_pose(double dist, double azimuth, double polar, double rot_gripper_z)
+    pregrasp_pose_ = generate_gripper_align_pose(grasp_pose_, 0.1, -M_PI/4, M_PI/2, M_PI/2);
+
+    postgrasp_pose_ = pregrasp_pose_;
+
+//    // joint space
+
+//    std::vector<double> grasp_pose_joint;
+//    grasp_pose_joint.resize(joint_names_.size());
+////    getInvK(grasp_pose, grasp_pose_joint);
+//    grasp_pose_joint[0] = -120.716 *M_PI/180.0;
+//    grasp_pose_joint[1] = 192.656 *M_PI/180.0;
+//    grasp_pose_joint[2] = 78.033 *M_PI/180.0;
+//    grasp_pose_joint[3] = -126.818 *M_PI/180.0;
+//    grasp_pose_joint[4] = 64.909 *M_PI/180.0;
+//    grasp_pose_joint[5] = 91.227 *M_PI/180.0;
+
+//    group.setJointValueTarget(grasp_pose_joint);
+
+    std::vector<geometry_msgs::PoseStamped> pose_seq;
+    pose_seq.push_back(pregrasp_pose_);
+    pose_seq.push_back(grasp_pose_);
+    pose_seq.push_back(postgrasp_pose_);
+
+//    group.setPoseTargets(pose_seq);
+
+    group.setPoseTarget(grasp_pose_);
 
 
-    // joint space
+    // setup constrains
+    moveit_msgs::OrientationConstraint ocm;
+    ocm.link_name = "j2n6s300_end_effector";
+    ocm.header.frame_id = "root";
+    ocm.orientation = grasp_pose_.pose.orientation;
+    ocm.absolute_x_axis_tolerance = 0.1;
+    ocm.absolute_y_axis_tolerance = 0.1;
+    ocm.absolute_z_axis_tolerance = 0.1;
+    ocm.weight = 1.0;
 
-    std::vector<double> grasp_pose_joint;
-    grasp_pose_joint.resize(joint_names_.size());
-//    getInvK(grasp_pose, grasp_pose_joint);
-    grasp_pose_joint[0] = -120.716 *M_PI/180.0;
-    grasp_pose_joint[1] = 192.656 *M_PI/180.0;
-    grasp_pose_joint[2] = 78.033 *M_PI/180.0;
-    grasp_pose_joint[3] = -126.818 *M_PI/180.0;
-    grasp_pose_joint[4] = 64.909 *M_PI/180.0;
-    grasp_pose_joint[5] = 91.227 *M_PI/180.0;
 
-    group.setJointValueTarget(grasp_pose_joint);
+    /* Define position constrain box . */
+    shape_msgs::SolidPrimitive primitive;
+    primitive.type = primitive.BOX;
+    primitive.dimensions.resize(3);
+    // group.getCurrentPose() does not work.
+    current_pose_ = group.getCurrentPose();
+    double constrain_box_scale = 1.5;
+    primitive.dimensions[0] = constrain_box_scale * std::abs(grasp_pose_.pose.position.x - current_pose_.pose.position.x);
+    primitive.dimensions[1] = constrain_box_scale * std::abs(grasp_pose_.pose.position.y - current_pose_.pose.position.y);
+    primitive.dimensions[2] = constrain_box_scale * std::abs(grasp_pose_.pose.position.z - current_pose_.pose.position.z);
+
+    /* A pose for the box (specified relative to frame_id) */
+    geometry_msgs::Pose box_pose;
+    box_pose.orientation.w = 1.0;
+    // place between start point and goal point.
+    box_pose.position.x = (grasp_pose_.pose.position.x + current_pose_.pose.position.x)/2.0;
+    box_pose.position.y = (grasp_pose_.pose.position.y + current_pose_.pose.position.y)/2.0;
+    box_pose.position.z = (grasp_pose_.pose.position.z + current_pose_.pose.position.z)/2.0;
+
+    moveit_msgs::PositionConstraint pcm;
+    pcm.link_name = "j2n6s300_end_effector";
+    pcm.header.frame_id = "root";
+    pcm.constraint_region.primitives.push_back(primitive);
+    pcm.constraint_region.primitive_poses.push_back(box_pose);
+    pcm.weight = 0.5;
+
+    moveit_msgs::Constraints grasp_constrains;
+    grasp_constrains.orientation_constraints.push_back(ocm);
+    group.setPathConstraints(grasp_constrains);
 
     moveit::planning_interface::MoveGroup::Plan my_plan;
 
@@ -258,6 +310,7 @@ bool PickPlace::my_pick(moveit::planning_interface::MoveGroup &group, moveit::pl
         group.execute(my_plan);
     }
 
+    return true;
 }
 
 
@@ -276,6 +329,7 @@ int main(int argc, char **argv)
 
     // MoveIt
     moveit::planning_interface::MoveGroup group("arm");
+    group.setEndEffectorLink("j2n6s300_end_effector");
     moveit::planning_interface::MoveGroup gripper_group("gripper");
 
     kinova::PickPlace pick_place(node, group, gripper_group);

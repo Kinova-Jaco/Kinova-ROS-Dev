@@ -58,11 +58,11 @@ namespace kinova
         geometry_msgs::PoseStamped grasp_pose_;
         geometry_msgs::PoseStamped pregrasp_pose_;
         geometry_msgs::PoseStamped postgrasp_pose_;
+        geometry_msgs::PoseStamped current_pose_;
 
         void build_workscene();
         void define_grasp_pose();
-        void generate_pregrasp_pose(double dist, double azimuth, double polar, double rot_gripper_z);
-        geometry_msgs::PoseStamped generate_postgrasp_pose();
+        geometry_msgs::PoseStamped generate_gripper_align_pose(geometry_msgs::PoseStamped targetpose_msg, double dist, double azimuth, double polar, double rot_gripper_z);
         bool my_pick(moveit::planning_interface::MoveGroup &group, moveit::planning_interface::MoveGroup &gripper_group);
         bool my_place(moveit::planning_interface::MoveGroup &group, moveit::planning_interface::MoveGroup &gripper_group);
         void getInvK(geometry_msgs::Pose &eef_pose, std::vector<double> &joint_value);
