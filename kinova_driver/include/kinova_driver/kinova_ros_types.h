@@ -64,7 +64,7 @@ tf::Quaternion EulerXYZ2Quaternion(float tx, float ty, float tz);
 
 tf::Matrix3x3 EulerXYZ2Matrix3x3(float tx, float ty, float tz);
 
-void getEulerXYZ(tf::Matrix3x3 &Rot_matrix, float &tx, float &ty, float &tz);
+void getEulerXYZ(tf::Matrix3x3 &Rot_matrix, float &txf, float &tyf, float &tzf);
 
 void getEulerXYZ(tf::Quaternion &q, float &tx, float &ty, float &tz);
 

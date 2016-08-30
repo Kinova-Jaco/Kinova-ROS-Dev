@@ -154,18 +154,44 @@ tf::Matrix3x3 EulerXYZ2Matrix3x3(float tx, float ty, float tz)
  * @param tz output Euler angle tz
  * @warning DSP(KinovaPose) use Euler-XYZ convention, while ROS use Euler-ZYX by default.
  */
-void getEulerXYZ(tf::Matrix3x3 &Rot_matrix, float &tx, float &ty, float &tz)
+void getEulerXYZ(tf::Matrix3x3 &Rot_matrix, float &txf, float &tyf, float &tzf)
 {
-    float a11 = Rot_matrix.getRow(0).getX();
-    float a12 = Rot_matrix.getRow(0).getY();
+
     float a13 = Rot_matrix.getRow(0).getZ();
+    float a21 = Rot_matrix.getRow(1).getX();
+    float a22 = Rot_matrix.getRow(1).getY();
     float a23 = Rot_matrix.getRow(1).getZ();
+    float a31 = Rot_matrix.getRow(2).getX();
+    float a32 = Rot_matrix.getRow(2).getY();
     float a33 = Rot_matrix.getRow(2).getZ();
 
-    tx = atan2(-a23, a33);
-    ty = atan2(a13, sqrt(1-a13*a13));
-    tz = atan2(-a12, a11);
+    // overcome the non-solution constrain when ty = pi/2
+    float tx = atan2(-a23, a33);
+    float ty = atan2(a13, -sin(tx)*a23 + cos(tx)*a33);
+    float tz = atan2(cos(tx)*a21 + sin(tx)*a31, cos(tx)*a22 + sin(tx)*a32);
 
+    // modify final values
+    if (std::abs(a23) < 1e-6 && std::abs(a33) < 1e-6)
+        if (ty > 0.0)
+        {
+            txf = (tx + tz) / 2.0;
+            tzf = (tx + tz) / 2.0;
+            tyf = ty;
+        }
+        else
+        {
+            txf = -(tx + tz) / 2.0;
+            tzf = (tx + tz) / 2.0;
+            tyf = ty;
+        }
+     else
+    {
+        txf = tx;
+        tzf = tz;
+        tyf = ty;
+    }
+
+//    ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << std::endl << "getEulerXYZ tx : " << txf << ", ty: " << tyf << ", tz:" << tzf);
 }
 
 
@@ -179,14 +205,13 @@ void getEulerXYZ(tf::Matrix3x3 &Rot_matrix, float &tx, float &ty, float &tz)
  */
 void getEulerXYZ(tf::Quaternion &q, float &tx, float &ty, float &tz)
 {
-    float qx = q.getX();
-    float qy = q.getY();
-    float qz = q.getZ();
-    float qw = q.getW();
+    tf::Matrix3x3 rot;
+    rot.setRotation(q);
 
-    tx = atan2((2*qw*qx-2*qy*qz),(qw*qw-qx*qx-qy*qy+qz*qz));
-    ty = asin(2*qw*qy+2*qx*qz);
-    tz = atan2((2*qw*qz-2*qx*qy),(qw*qw+qx*qx-qy*qy-qz*qz));
+//    ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << std::endl << "rot_x 1st row : " << rot.getRow(0).getX() << ", " << rot.getRow(0).getY() << ", " << rot.getRow(0).getZ() << ", "  << std::endl << "rot_x 2nd row : " << rot.getRow(1).getX() << ", " << rot.getRow(1).getY() << ", " << rot.getRow(1).getZ() << ", "  << std::endl << "rot_x 3rd row : " << rot.getRow(2).getX() << ", " << rot.getRow(2).getY() << ", " << rot.getRow(2).getZ());
+
+    getEulerXYZ(rot, tx, ty, tz);
+
 }
 
 bool valid_kinovaRobotType(const std::string &kinova_RobotType)
