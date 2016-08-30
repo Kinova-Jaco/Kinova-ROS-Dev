@@ -2,6 +2,7 @@
 #define PICK_PLACE_H
 
 #include <ros/ros.h>
+#include <kinova_driver/kinova_ros_types.h>
 
 // MoveIt!
 #include <moveit/robot_model_loader/robot_model_loader.h>
