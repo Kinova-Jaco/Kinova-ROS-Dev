@@ -5,8 +5,9 @@
 
 using namespace kinova;
 
-tf::Matrix3x3 setEulerZYZ(double tz1, double ty, double tz2)
+tf::Quaternion EulerZYZ_to_Quaternion(double tz1, double ty, double tz2)
 {
+    tf::Quaternion q;
     tf::Matrix3x3 rot;
     tf::Matrix3x3 rot_temp;
     rot.setIdentity();
@@ -19,7 +20,9 @@ tf::Matrix3x3 setEulerZYZ(double tz1, double ty, double tz2)
     rot *= rot_temp;
 
 //    ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << std::endl << "rot_x 1st row : " << rot.getRow(0).getX() << ", " << rot.getRow(0).getY() << ", " << rot.getRow(0).getZ() << ", "  << std::endl << "rot_x 2nd row : " << rot.getRow(1).getX() << ", " << rot.getRow(1).getY() << ", " << rot.getRow(1).getZ() << ", "  << std::endl << "rot_x 3rd row : " << rot.getRow(2).getX() << ", " << rot.getRow(2).getY() << ", " << rot.getRow(2).getZ());
-    return rot;
+
+    rot.setRotation(q);
+    return q;
 }
 
 
@@ -114,35 +117,6 @@ void PickPlace::build_workscene()
     co_.header.frame_id = "root";
     co_.header.stamp = ros::Time::now();
 
-    // remove pole
-    co_.id = "pole";
-    co_.operation = moveit_msgs::CollisionObject::REMOVE;
-    pub_co_.publish(co_);
-    //      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove pole ");
-    //      std::cin >> pause;
-
-    // add pole
-    co_.operation = moveit_msgs::CollisionObject::ADD;
-    co_.primitives.resize(1);
-    co_.primitives[0].type = shape_msgs::SolidPrimitive::BOX;
-    co_.primitives[0].dimensions.resize(geometric_shapes::SolidPrimitiveDimCount<shape_msgs::SolidPrimitive::BOX>::value);
-    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.3;
-    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.1;
-    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 1.0;
-    co_.primitive_poses.resize(1);
-    co_.primitive_poses[0].position.x = 0.7;
-    co_.primitive_poses[0].position.y = 0.0; // -0.4
-    co_.primitive_poses[0].position.z = 0.85;
-    co_.primitive_poses[0].orientation.w = 1.0;
-    pub_co_.publish(co_);
-    planning_scene_msg_.world.collision_objects.push_back(co_);
-    planning_scene_msg_.is_diff = true;
-    pub_planning_scene_diff_.publish(planning_scene_msg_);
-    ros::WallDuration(0.1).sleep();
-    //      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": ADD pole ");
-    //      std::cin >> pause;
-
-
     // remove table
     co_.id = "table";
     co_.operation = moveit_msgs::CollisionObject::REMOVE;
@@ -151,13 +125,18 @@ void PickPlace::build_workscene()
     //      std::cin >> pause;
 
     // add table
+    co_.primitives.resize(1);
+    co_.primitive_poses.resize(1);
+    co_.primitives[0].type = shape_msgs::SolidPrimitive::BOX;
+    co_.primitives[0].dimensions.resize(geometric_shapes::SolidPrimitiveDimCount<shape_msgs::SolidPrimitive::BOX>::value);
     co_.operation = moveit_msgs::CollisionObject::ADD;
-    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.5;
-    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 1.5;
-    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.35;
-    co_.primitive_poses[0].position.x = 0.7;
-    co_.primitive_poses[0].position.y = -0.2;
-    co_.primitive_poses[0].position.z = 0.175;
+
+    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 1.6;
+    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.8;
+    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.03;
+    co_.primitive_poses[0].position.x = 1.6/2.0 - 0.1;
+    co_.primitive_poses[0].position.y = 0.8/2.0 - 0.1;
+    co_.primitive_poses[0].position.z = -0.03/2.0;
     pub_co_.publish(co_);
     planning_scene_msg_.world.collision_objects.push_back(co_);
     planning_scene_msg_.is_diff = true;
@@ -166,7 +145,7 @@ void PickPlace::build_workscene()
 //          ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": ADD table ");
 //          std::cin >> pause;
 
-    co_.id = "part";
+    co_.id = "coca_can";
     co_.operation = moveit_msgs::CollisionObject::REMOVE;
     pub_co_.publish(co_);
     //      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove part in co_ ");
@@ -177,15 +156,23 @@ void PickPlace::build_workscene()
     //      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove part in aco_ ");
     //      std::cin >> pause;
 
-
+    co_.primitives.resize(1);
+    co_.primitive_poses.resize(1);
+    co_.primitives[0].type = shape_msgs::SolidPrimitive::CYLINDER;
+    co_.primitives[0].dimensions.resize(geometric_shapes::SolidPrimitiveDimCount<shape_msgs::SolidPrimitive::CYLINDER>::value);
     co_.operation = moveit_msgs::CollisionObject::ADD;
-    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.15;
-    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.1;
-    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.3;
 
-    co_.primitive_poses[0].position.x = 0.6;
-    co_.primitive_poses[0].position.y = -0.3; // -0.7
-    co_.primitive_poses[0].position.z = 0.5;
+    double coca_h = 0.13;
+    double coca_r = 0.036;
+    double coca_pos_x = 0.5;
+    double coca_pos_y = 0.5;
+    double coca_pos_z = coca_h/2.0;
+
+    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::CYLINDER_HEIGHT] = coca_h;
+    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::CYLINDER_RADIUS] = coca_r;
+    co_.primitive_poses[0].position.x = coca_pos_x;
+    co_.primitive_poses[0].position.y = coca_pos_y;
+    co_.primitive_poses[0].position.z = coca_pos_z;
     pub_co_.publish(co_);
     planning_scene_msg_.world.collision_objects.push_back(co_);
     planning_scene_msg_.is_diff = true;
@@ -194,6 +181,38 @@ void PickPlace::build_workscene()
 
 //          ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": add part in co_ ");
 //          std::cin >> pause;
+
+
+    // remove pole
+    co_.id = "pole";
+    co_.operation = moveit_msgs::CollisionObject::REMOVE;
+    pub_co_.publish(co_);
+    //      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove pole ");
+    //      std::cin >> pause;
+
+
+    // add obstacle between robot and object
+    co_.primitives.resize(1);
+    co_.primitive_poses.resize(1);
+    co_.primitives[0].type = shape_msgs::SolidPrimitive::BOX;
+    co_.primitives[0].dimensions.resize(geometric_shapes::SolidPrimitiveDimCount<shape_msgs::SolidPrimitive::BOX>::value);
+    co_.operation = moveit_msgs::CollisionObject::ADD;
+
+    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = coca_r *1.5;
+    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = coca_r *1.5;
+    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = coca_h *1.5;
+    co_.primitive_poses[0].position.x = coca_pos_x/2.0;
+    co_.primitive_poses[0].position.y = coca_pos_y/2.0;
+    co_.primitive_poses[0].position.z = coca_h*1.5/2.0;
+    co_.primitive_poses[0].orientation.w = 1.0;
+    pub_co_.publish(co_);
+    planning_scene_msg_.world.collision_objects.push_back(co_);
+    planning_scene_msg_.is_diff = true;
+    pub_planning_scene_diff_.publish(planning_scene_msg_);
+    ros::WallDuration(0.1).sleep();
+    //      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": ADD pole ");
+    //      std::cin >> pause;
+
 }
 
 
@@ -206,12 +225,14 @@ void PickPlace::define_grasp_pose()
 
     // Euler_ZYZ (-M_PI/4, M_PI/2, M_PI/2)
     grasp_pose_.pose.position.x = 0.5;
-    grasp_pose_.pose.position.y = -0.5;
-    grasp_pose_.pose.position.z = 0.05;
-    grasp_pose_.pose.orientation.x = 0.653281;
-    grasp_pose_.pose.orientation.y = 0.270598;
-    grasp_pose_.pose.orientation.z = 0.270598;
-    grasp_pose_.pose.orientation.w = 0.653281;
+    grasp_pose_.pose.position.y = 0.5;
+    grasp_pose_.pose.position.z = 0.1;
+
+    tf::Quaternion q = EulerZYZ_to_Quaternion(M_PI/4, M_PI/2, M_PI/2);
+    grasp_pose_.pose.orientation.x = q.x();
+    grasp_pose_.pose.orientation.y = q.y();
+    grasp_pose_.pose.orientation.z = q.z();
+    grasp_pose_.pose.orientation.w = q.w();
 }
 
 
@@ -236,12 +257,7 @@ geometry_msgs::PoseStamped PickPlace::generate_gripper_align_pose(geometry_msgs:
     double delta_z = -dist * cos(polar);
 
     // computer the orientation of gripper w.r.t. fixed world (root) reference frame. The gripper (z axis) should point(open) to the grasp_pose.
-    tf::Quaternion q;
-    tf::Matrix3x3 rot_matrix;
-
-    // pointing to grasp pose and rotate by rot_gripper_z
-    rot_matrix = setEulerZYZ(azimuth, polar, rot_gripper_z);
-    rot_matrix.getRotation(q);
+    tf::Quaternion q = EulerZYZ_to_Quaternion(azimuth, polar, rot_gripper_z);
 
     pose_msg.pose.position.x = targetpose_msg.pose.position.x + delta_x;
     pose_msg.pose.position.y = targetpose_msg.pose.position.y + delta_y;
@@ -345,7 +361,7 @@ bool PickPlace::my_pick()
     ros::WallDuration(1.0).sleep();
 
     // generate_pregrasp_pose(double dist, double azimuth, double polar, double rot_gripper_z)
-    pregrasp_pose_ = generate_gripper_align_pose(grasp_pose_, 0.1, -M_PI/4, M_PI/2, M_PI/2);
+    pregrasp_pose_ = generate_gripper_align_pose(grasp_pose_, 0.1, M_PI/4, M_PI/2, M_PI/2);
 
     postgrasp_pose_ = pregrasp_pose_;
 
