@@ -86,6 +86,8 @@ namespace kinova
         void build_workscene();
         void define_grasp_pose();
         geometry_msgs::PoseStamped generate_gripper_align_pose(geometry_msgs::PoseStamped targetpose_msg, double dist, double azimuth, double polar, double rot_gripper_z);
+        void setup_constrain(geometry_msgs::Pose target_pose);
+
         bool my_pick();
         bool my_place();
 

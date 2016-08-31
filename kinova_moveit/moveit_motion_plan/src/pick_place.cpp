@@ -78,7 +78,7 @@ PickPlace::PickPlace(ros::NodeHandle &nh):
 //    ROS_INFO_STREAM("group_ home pose reached: " << group_->getCurrentPose().pose);
 
     // add collision objects
-//    build_workscene();
+    build_workscene();
 
     ros::WallDuration(1.0).sleep();
 
@@ -257,26 +257,86 @@ geometry_msgs::PoseStamped PickPlace::generate_gripper_align_pose(geometry_msgs:
 
 }
 
+void PickPlace::setup_constrain(geometry_msgs::Pose target_pose)
+{
+    // setup constrains
+    moveit_msgs::OrientationConstraint ocm;
+    ocm.link_name = "j2n6s300_end_effector";
+    ocm.header.frame_id = "root";
+    ocm.orientation = target_pose.orientation;
+    ocm.absolute_x_axis_tolerance = 0.1;
+    ocm.absolute_y_axis_tolerance = 0.1;
+    ocm.absolute_z_axis_tolerance = 0.1;
+    ocm.weight = 0.5;
+
+
+    /* Define position constrain box based on current pose and target pose. */
+    shape_msgs::SolidPrimitive primitive;
+    primitive.type = primitive.BOX;
+    primitive.dimensions.resize(3);
+
+    // group_->getCurrentPose() does not work.
+//    current_pose_ = group_->getCurrentPose();
+    geometry_msgs::Pose current_pose;
+    { // scope for mutex update
+        boost::mutex::scoped_lock lock_pose(mutex_pose_);
+        current_pose = current_pose_.pose;
+//        ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << "current_pose_: x " << current_pose_.pose.position.x  << ", y " << current_pose_.pose.position.y  << ", z " << current_pose_.pose.position.z  << ", qx " << current_pose_.pose.orientation.x  << ", qy " << current_pose_.pose.orientation.y  << ", qz " << current_pose_.pose.orientation.z  << ", qw " << current_pose_.pose.orientation.w );
+    }
+
+    double constrain_box_scale = 2.0;
+    primitive.dimensions[0] = constrain_box_scale * std::abs(target_pose.position.x - current_pose.position.x);
+    primitive.dimensions[1] = constrain_box_scale * std::abs(target_pose.position.y - current_pose.position.y);
+    primitive.dimensions[2] = constrain_box_scale * std::abs(target_pose.position.z - current_pose.position.z);
+
+    /* A pose for the box (specified relative to frame_id) */
+    geometry_msgs::Pose box_pose;
+    box_pose.orientation.w = 1.0;
+    // place between start point and goal point.
+    box_pose.position.x = (target_pose.position.x + current_pose.position.x)/2.0;
+    box_pose.position.y = (target_pose.position.y + current_pose.position.y)/2.0;
+    box_pose.position.z = (target_pose.position.z + current_pose.position.z)/2.0;
+
+    moveit_msgs::PositionConstraint pcm;
+    pcm.link_name = "j2n6s300_end_effector";
+    pcm.header.frame_id = "root";
+    pcm.constraint_region.primitives.push_back(primitive);
+    pcm.constraint_region.primitive_poses.push_back(box_pose);
+    pcm.weight = 0.5;
+
+    moveit_msgs::Constraints grasp_constrains;
+    grasp_constrains.orientation_constraints.push_back(ocm);
+    group_->setPathConstraints(grasp_constrains);
+
+
+//    // The bellowing code is just for visulizing the box and check.
+//    // Disable this part after checking.
+//    co_.id = "check_constrain";
+//    co_.operation = moveit_msgs::CollisionObject::REMOVE;
+//    pub_co_.publish(co_);
+
+//    co_.operation = moveit_msgs::CollisionObject::ADD;
+//    co_.primitives.push_back(primitive);
+//    co_.primitive_poses.push_back(box_pose);
+//    pub_co_.publish(co_);
+//    planning_scene_msg_.world.collision_objects.push_back(co_);
+//    planning_scene_msg_.is_diff = true;
+//    pub_planning_scene_diff_.publish(planning_scene_msg_);
+//    ros::WallDuration(0.1).sleep();
+}
+
 
 bool PickPlace::my_pick()
 {
 
-//    ROS_INFO("group_ home joint reached:");
-//    group_->getCurrentState()->printStatePositions();
-//    ROS_INFO_STREAM("group_ home pose reached: " << group_->getCurrentPose().pose);
-
-    { // scope for mutex update
-        boost::mutex::scoped_lock lock_pose(mutex_pose_);
-        ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << "current_pose_: x " << current_pose_.pose.position.x  << ", y " << current_pose_.pose.position.y  << ", z " << current_pose_.pose.position.z  << ", qx " << current_pose_.pose.orientation.x  << ", qy " << current_pose_.pose.orientation.y  << ", qz " << current_pose_.pose.orientation.z  << ", qw " << current_pose_.pose.orientation.w );
-    }
 
     { // scope for mutex update
         boost::mutex::scoped_lock lock_state(mutex_state_);
-        ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " );
-        for (int i = 0; i< 6; i++)
-        {
-            ROS_DEBUG_STREAM(current_state_.name[i] << ": " << current_state_.position[i] << ", " );
-        }
+//        ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " );
+//        for (int i = 0; i< 9; i++)
+//        {
+//            ROS_DEBUG_STREAM(current_state_.name[i] << ": " << current_state_.position[i] << ", " );
+//        }
     }
 
 
@@ -312,47 +372,8 @@ bool PickPlace::my_pick()
 
     group_->setPoseTarget(grasp_pose_);
 
+    setup_constrain(pregrasp_pose_.pose);
 
-    // setup constrains
-    moveit_msgs::OrientationConstraint ocm;
-    ocm.link_name = "j2n6s300_end_effector";
-    ocm.header.frame_id = "root";
-    ocm.orientation = grasp_pose_.pose.orientation;
-    ocm.absolute_x_axis_tolerance = 0.1;
-    ocm.absolute_y_axis_tolerance = 0.1;
-    ocm.absolute_z_axis_tolerance = 0.1;
-    ocm.weight = 1.0;
-
-
-    /* Define position constrain box . */
-    shape_msgs::SolidPrimitive primitive;
-    primitive.type = primitive.BOX;
-    primitive.dimensions.resize(3);
-    // group_->getCurrentPose() does not work.
-    current_pose_ = group_->getCurrentPose();
-    double constrain_box_scale = 1.5;
-    primitive.dimensions[0] = constrain_box_scale * std::abs(grasp_pose_.pose.position.x - current_pose_.pose.position.x);
-    primitive.dimensions[1] = constrain_box_scale * std::abs(grasp_pose_.pose.position.y - current_pose_.pose.position.y);
-    primitive.dimensions[2] = constrain_box_scale * std::abs(grasp_pose_.pose.position.z - current_pose_.pose.position.z);
-
-    /* A pose for the box (specified relative to frame_id) */
-    geometry_msgs::Pose box_pose;
-    box_pose.orientation.w = 1.0;
-    // place between start point and goal point.
-    box_pose.position.x = (grasp_pose_.pose.position.x + current_pose_.pose.position.x)/2.0;
-    box_pose.position.y = (grasp_pose_.pose.position.y + current_pose_.pose.position.y)/2.0;
-    box_pose.position.z = (grasp_pose_.pose.position.z + current_pose_.pose.position.z)/2.0;
-
-    moveit_msgs::PositionConstraint pcm;
-    pcm.link_name = "j2n6s300_end_effector";
-    pcm.header.frame_id = "root";
-    pcm.constraint_region.primitives.push_back(primitive);
-    pcm.constraint_region.primitive_poses.push_back(box_pose);
-    pcm.weight = 0.5;
-
-    moveit_msgs::Constraints grasp_constrains;
-    grasp_constrains.orientation_constraints.push_back(ocm);
-    group_->setPathConstraints(grasp_constrains);
 
     moveit::planning_interface::MoveGroup::Plan my_plan;
 
