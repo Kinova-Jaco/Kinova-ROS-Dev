@@ -1,6 +1,8 @@
 #include <pick_place.h>
 #include <ros/console.h>
 
+#include <tf_conversions/tf_eigen.h>
+
 using namespace kinova;
 
 tf::Matrix3x3 setEulerZYZ(double tz1, double ty, double tz2)
@@ -33,8 +35,22 @@ PickPlace::PickPlace(ros::NodeHandle &nh):
 
 //    sub_joint_ = nh_.subscribe<"", 1, &getCurrentJoint, this);
 
+    // Before we can load the planner, we need two objects, a RobotModel and a PlanningScene.
+    robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
+    robot_model_ = robot_model_loader.getModel();
+
+    // construct a `PlanningScene` that maintains the state of the world (including the robot).
+    planning_scene_.reset(new planning_scene::PlanningScene(robot_model_));
+    planning_scene_monitor_.reset(new planning_scene_monitor::PlanningSceneMonitor("robot_description"));
+
+//    //  every time need retrive current robot state, do the following.
+//    robot_state::RobotState& robot_state = planning_scene_->getCurrentStateNonConst();
+//    const robot_state::JointModelGroup *joint_model_group = robot_state.getJointModelGroup("arm");
+
     group_ = new moveit::planning_interface::MoveGroup("arm");
     gripper_group_ = new moveit::planning_interface::MoveGroup("gripper");
+
+    group_->setEndEffectorLink("j2n6s300_end_effector");
 
     pub_co_ = nh_.advertise<moveit_msgs::CollisionObject>("/collision_object", 10);
     pub_aco_ = nh_.advertise<moveit_msgs::AttachedCollisionObject>("/attached_collision_object", 10);
@@ -51,9 +67,14 @@ PickPlace::PickPlace(ros::NodeHandle &nh):
 
     // send robot to home position
     group_->setNamedTarget("Home");
-//    group_->move();
+    group_->move();
     ros::WallDuration(1.0).sleep();
-    ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": send robot to home position");
+    ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": ");
+    ROS_DEBUG_STREAM("send robot to home position");
+
+    ROS_INFO("group_ home joint reached:");
+    group_->getCurrentState()->printStatePositions();
+    ROS_INFO_STREAM("group_ home pose reached: " << group_->getCurrentPose().pose);
 
     // add collision objects
 //    build_workscene();
@@ -63,7 +84,6 @@ PickPlace::PickPlace(ros::NodeHandle &nh):
     // pick process
     result_ = false;
     result_ = my_pick();
-
 
 }
 
@@ -101,9 +121,9 @@ void PickPlace::build_workscene()
     co_.primitive_poses[0].position.z = 0.85;
     co_.primitive_poses[0].orientation.w = 1.0;
     pub_co_.publish(co_);
-    planning_scene_.world.collision_objects.push_back(co_);
-    planning_scene_.is_diff = true;
-    pub_planning_scene_diff_.publish(planning_scene_);
+    planning_scene_msg_.world.collision_objects.push_back(co_);
+    planning_scene_msg_.is_diff = true;
+    pub_planning_scene_diff_.publish(planning_scene_msg_);
     ros::WallDuration(0.1).sleep();
     //      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": ADD pole ");
     //      std::cin >> pause;
@@ -125,9 +145,9 @@ void PickPlace::build_workscene()
     co_.primitive_poses[0].position.y = -0.2;
     co_.primitive_poses[0].position.z = 0.175;
     pub_co_.publish(co_);
-    planning_scene_.world.collision_objects.push_back(co_);
-    planning_scene_.is_diff = true;
-    pub_planning_scene_diff_.publish(planning_scene_);
+    planning_scene_msg_.world.collision_objects.push_back(co_);
+    planning_scene_msg_.is_diff = true;
+    pub_planning_scene_diff_.publish(planning_scene_msg_);
     ros::WallDuration(0.1).sleep();
 //          ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": ADD table ");
 //          std::cin >> pause;
@@ -153,9 +173,9 @@ void PickPlace::build_workscene()
     co_.primitive_poses[0].position.y = -0.3; // -0.7
     co_.primitive_poses[0].position.z = 0.5;
     pub_co_.publish(co_);
-    planning_scene_.world.collision_objects.push_back(co_);
-    planning_scene_.is_diff = true;
-    pub_planning_scene_diff_.publish(planning_scene_);
+    planning_scene_msg_.world.collision_objects.push_back(co_);
+    planning_scene_msg_.is_diff = true;
+    pub_planning_scene_diff_.publish(planning_scene_msg_);
     ros::WallDuration(0.1).sleep();
 
 //          ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": add part in co_ ");
@@ -224,6 +244,11 @@ geometry_msgs::PoseStamped PickPlace::generate_gripper_align_pose(geometry_msgs:
 
 bool PickPlace::my_pick()
 {
+
+
+//    ROS_INFO("group_ home joint reached:");
+//    group_->getCurrentState()->printStatePositions();
+//    ROS_INFO_STREAM("group_ home pose reached: " << group_->getCurrentPose().pose);
 
     define_grasp_pose();
 

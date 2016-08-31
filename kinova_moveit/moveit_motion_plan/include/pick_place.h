@@ -10,9 +10,12 @@
 #include <moveit/robot_state/conversions.h>
 
 #include <moveit/move_group_interface/move_group.h>
+#include <moveit/planning_interface/planning_interface.h>
 #include <moveit/planning_scene/planning_scene.h>
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
+#include <moveit/planning_pipeline/planning_pipeline.h>
 
+#include <moveit/kinematic_constraints/utils.h>
 #include <geometric_shapes/solid_primitive_dims.h>
 
 #include <moveit_msgs/PlanningScene.h>
@@ -20,6 +23,8 @@
 #include <moveit_msgs/GetStateValidity.h>
 #include <moveit_msgs/DisplayRobotState.h>
 #include <moveit_msgs/ApplyPlanningScene.h>
+#include <moveit_msgs/DisplayTrajectory.h>
+
 namespace kinova
 {
 
@@ -37,11 +42,16 @@ namespace kinova
 
         moveit::planning_interface::MoveGroup* group_;
         moveit::planning_interface::MoveGroup* gripper_group_;
+        robot_model::RobotModelPtr robot_model_;
+//        robot_state::RobotStatePtr robot_state_;
+
+        planning_scene::PlanningScenePtr planning_scene_;
+        planning_scene_monitor::PlanningSceneMonitorPtr planning_scene_monitor_;
 
         // work scene
         moveit_msgs::CollisionObject co_;
         moveit_msgs::AttachedCollisionObject aco_;
-        moveit_msgs::PlanningScene planning_scene_;
+        moveit_msgs::PlanningScene planning_scene_msg_;
 
 
         ros::Publisher pub_co_;
