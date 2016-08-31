@@ -70,18 +70,28 @@ namespace kinova
         // check some process if success.
         bool result_;
 
+        // update current state and pose
+        boost::mutex mutex_state_;
+        boost::mutex mutex_pose_;
+        sensor_msgs::JointState current_state_;
+        geometry_msgs::PoseStamped current_pose_;
 
-        //
+
+        // define pick_place pose
         geometry_msgs::PoseStamped grasp_pose_;
         geometry_msgs::PoseStamped pregrasp_pose_;
         geometry_msgs::PoseStamped postgrasp_pose_;
-        geometry_msgs::PoseStamped current_pose_;
+
 
         void build_workscene();
         void define_grasp_pose();
         geometry_msgs::PoseStamped generate_gripper_align_pose(geometry_msgs::PoseStamped targetpose_msg, double dist, double azimuth, double polar, double rot_gripper_z);
         bool my_pick();
         bool my_place();
+
+        void get_current_state(const sensor_msgs::JointStateConstPtr &msg);
+        void get_current_pose(const geometry_msgs::PoseStampedConstPtr &msg);
+        // TODO: use Kinova inverse kinematic solution instead of from ROS.
         void getInvK(geometry_msgs::Pose &eef_pose, std::vector<double> &joint_value);
 
     };

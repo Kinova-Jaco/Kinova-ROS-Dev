@@ -33,7 +33,8 @@ PickPlace::PickPlace(ros::NodeHandle &nh):
 
     ros::NodeHandle pn("~");
 
-//    sub_joint_ = nh_.subscribe<"", 1, &getCurrentJoint, this);
+    sub_joint_ = nh_.subscribe<sensor_msgs::JointState>("/j2n6s300_driver/out/joint_state", 1, &PickPlace::get_current_state, this);
+    sub_pose_ = nh_.subscribe<geometry_msgs::PoseStamped>("/j2n6s300_driver/out/tool_pose", 1, &PickPlace::get_current_pose, this);
 
     // Before we can load the planner, we need two objects, a RobotModel and a PlanningScene.
     robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
@@ -72,9 +73,9 @@ PickPlace::PickPlace(ros::NodeHandle &nh):
     ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": ");
     ROS_DEBUG_STREAM("send robot to home position");
 
-    ROS_INFO("group_ home joint reached:");
-    group_->getCurrentState()->printStatePositions();
-    ROS_INFO_STREAM("group_ home pose reached: " << group_->getCurrentPose().pose);
+//    ROS_INFO("group_ home joint reached:");
+//    group_->getCurrentState()->printStatePositions();
+//    ROS_INFO_STREAM("group_ home pose reached: " << group_->getCurrentPose().pose);
 
     // add collision objects
 //    build_workscene();
@@ -91,6 +92,19 @@ PickPlace::PickPlace(ros::NodeHandle &nh):
 PickPlace::~PickPlace()
 {
     //
+}
+
+
+void PickPlace::get_current_state(const sensor_msgs::JointStateConstPtr &msg)
+{
+    boost::mutex::scoped_lock lock(mutex_state_);
+    current_state_ = *msg;
+}
+
+void PickPlace::get_current_pose(const geometry_msgs::PoseStampedConstPtr &msg)
+{
+    boost::mutex::scoped_lock lock(mutex_pose_);
+    current_pose_ = *msg;
 }
 
 
@@ -183,6 +197,8 @@ void PickPlace::build_workscene()
 }
 
 
+
+
 void PickPlace::define_grasp_pose()
 {
     grasp_pose_.header.frame_id = "root";
@@ -245,10 +261,24 @@ geometry_msgs::PoseStamped PickPlace::generate_gripper_align_pose(geometry_msgs:
 bool PickPlace::my_pick()
 {
 
-
 //    ROS_INFO("group_ home joint reached:");
 //    group_->getCurrentState()->printStatePositions();
 //    ROS_INFO_STREAM("group_ home pose reached: " << group_->getCurrentPose().pose);
+
+    { // scope for mutex update
+        boost::mutex::scoped_lock lock_pose(mutex_pose_);
+        ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << "current_pose_: x " << current_pose_.pose.position.x  << ", y " << current_pose_.pose.position.y  << ", z " << current_pose_.pose.position.z  << ", qx " << current_pose_.pose.orientation.x  << ", qy " << current_pose_.pose.orientation.y  << ", qz " << current_pose_.pose.orientation.z  << ", qw " << current_pose_.pose.orientation.w );
+    }
+
+    { // scope for mutex update
+        boost::mutex::scoped_lock lock_state(mutex_state_);
+        ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " );
+        for (int i = 0; i< 6; i++)
+        {
+            ROS_DEBUG_STREAM(current_state_.name[i] << ": " << current_state_.position[i] << ", " );
+        }
+    }
+
 
     define_grasp_pose();
 
