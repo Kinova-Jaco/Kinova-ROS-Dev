@@ -21,7 +21,7 @@ tf::Matrix3x3 setEulerZYZ(double tz1, double ty, double tz2)
 }
 
 
-PickPlace::PickPlace(ros::NodeHandle &nh, moveit::planning_interface::MoveGroup &group, moveit::planning_interface::MoveGroup &gripper_group):
+PickPlace::PickPlace(ros::NodeHandle &nh):
     nh_(nh)
 {
     if(ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug))
@@ -30,6 +30,11 @@ PickPlace::PickPlace(ros::NodeHandle &nh, moveit::planning_interface::MoveGroup 
     }
 
     ros::NodeHandle pn("~");
+
+//    sub_joint_ = nh_.subscribe<"", 1, &getCurrentJoint, this);
+
+    group_ = new moveit::planning_interface::MoveGroup("arm");
+    gripper_group_ = new moveit::planning_interface::MoveGroup("gripper");
 
     pub_co_ = nh_.advertise<moveit_msgs::CollisionObject>("/collision_object", 10);
     pub_aco_ = nh_.advertise<moveit_msgs::AttachedCollisionObject>("/attached_collision_object", 10);
@@ -45,8 +50,8 @@ PickPlace::PickPlace(ros::NodeHandle &nh, moveit::planning_interface::MoveGroup 
 
 
     // send robot to home position
-    group.setNamedTarget("Home");
-//    group.move();
+    group_->setNamedTarget("Home");
+//    group_->move();
     ros::WallDuration(1.0).sleep();
     ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": send robot to home position");
 
@@ -57,7 +62,7 @@ PickPlace::PickPlace(ros::NodeHandle &nh, moveit::planning_interface::MoveGroup 
 
     // pick process
     result_ = false;
-    result_ = my_pick(group, gripper_group);
+    result_ = my_pick();
 
 
 }
@@ -217,7 +222,7 @@ geometry_msgs::PoseStamped PickPlace::generate_gripper_align_pose(geometry_msgs:
 }
 
 
-bool PickPlace::my_pick(moveit::planning_interface::MoveGroup &group, moveit::planning_interface::MoveGroup &gripper_group)
+bool PickPlace::my_pick()
 {
 
     define_grasp_pose();
@@ -241,16 +246,16 @@ bool PickPlace::my_pick(moveit::planning_interface::MoveGroup &group, moveit::pl
 //    grasp_pose_joint[4] = 64.909 *M_PI/180.0;
 //    grasp_pose_joint[5] = 91.227 *M_PI/180.0;
 
-//    group.setJointValueTarget(grasp_pose_joint);
+//    group_->setJointValueTarget(grasp_pose_joint);
 
     std::vector<geometry_msgs::PoseStamped> pose_seq;
     pose_seq.push_back(pregrasp_pose_);
     pose_seq.push_back(grasp_pose_);
     pose_seq.push_back(postgrasp_pose_);
 
-//    group.setPoseTargets(pose_seq);
+//    group_->setPoseTargets(pose_seq);
 
-    group.setPoseTarget(grasp_pose_);
+    group_->setPoseTarget(grasp_pose_);
 
 
     // setup constrains
@@ -268,8 +273,8 @@ bool PickPlace::my_pick(moveit::planning_interface::MoveGroup &group, moveit::pl
     shape_msgs::SolidPrimitive primitive;
     primitive.type = primitive.BOX;
     primitive.dimensions.resize(3);
-    // group.getCurrentPose() does not work.
-    current_pose_ = group.getCurrentPose();
+    // group_->getCurrentPose() does not work.
+    current_pose_ = group_->getCurrentPose();
     double constrain_box_scale = 1.5;
     primitive.dimensions[0] = constrain_box_scale * std::abs(grasp_pose_.pose.position.x - current_pose_.pose.position.x);
     primitive.dimensions[1] = constrain_box_scale * std::abs(grasp_pose_.pose.position.y - current_pose_.pose.position.y);
@@ -292,14 +297,14 @@ bool PickPlace::my_pick(moveit::planning_interface::MoveGroup &group, moveit::pl
 
     moveit_msgs::Constraints grasp_constrains;
     grasp_constrains.orientation_constraints.push_back(ocm);
-    group.setPathConstraints(grasp_constrains);
+    group_->setPathConstraints(grasp_constrains);
 
     moveit::planning_interface::MoveGroup::Plan my_plan;
 
     bool replan = true;
     while (replan == true && ros::ok())
     {
-        result_ = group.plan(my_plan);
+        result_ = group_->plan(my_plan);
         std::cout << "plan is sccess? " << (result_? "yes" : "no") << std::endl;
         std::cout << "please input 1 to replan, or 0 to execute the plan: ";
         std::cin >> replan;
@@ -307,7 +312,7 @@ bool PickPlace::my_pick(moveit::planning_interface::MoveGroup &group, moveit::pl
 
     if (result_ == true)
     {
-        group.execute(my_plan);
+        group_->execute(my_plan);
     }
 
     return true;
@@ -327,12 +332,7 @@ int main(int argc, char **argv)
     ros::AsyncSpinner spinner(1);
     spinner.start();
 
-    // MoveIt
-    moveit::planning_interface::MoveGroup group("arm");
-    group.setEndEffectorLink("j2n6s300_end_effector");
-    moveit::planning_interface::MoveGroup gripper_group("gripper");
-
-    kinova::PickPlace pick_place(node, group, gripper_group);
+    kinova::PickPlace pick_place(node);
 
     ros::spin();
     return 0;

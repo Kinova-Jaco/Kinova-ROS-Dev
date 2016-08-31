@@ -22,10 +22,12 @@
 #include <moveit_msgs/ApplyPlanningScene.h>
 namespace kinova
 {
+
+
     class PickPlace
     {
     public:
-        PickPlace(ros::NodeHandle &nh, moveit::planning_interface::MoveGroup &group, moveit::planning_interface::MoveGroup &gripper_group);
+        PickPlace(ros::NodeHandle &nh);
         ~PickPlace();
 
 
@@ -33,15 +35,20 @@ namespace kinova
     private:
         ros::NodeHandle nh_;
 
+        moveit::planning_interface::MoveGroup* group_;
+        moveit::planning_interface::MoveGroup* gripper_group_;
 
         // work scene
         moveit_msgs::CollisionObject co_;
         moveit_msgs::AttachedCollisionObject aco_;
         moveit_msgs::PlanningScene planning_scene_;
 
+
         ros::Publisher pub_co_;
         ros::Publisher pub_aco_;
         ros::Publisher pub_planning_scene_diff_;
+        ros::Subscriber sub_pose_;
+        ros::Subscriber sub_joint_;
 
         //
         std::vector<std::string> joint_names_;
@@ -63,8 +70,8 @@ namespace kinova
         void build_workscene();
         void define_grasp_pose();
         geometry_msgs::PoseStamped generate_gripper_align_pose(geometry_msgs::PoseStamped targetpose_msg, double dist, double azimuth, double polar, double rot_gripper_z);
-        bool my_pick(moveit::planning_interface::MoveGroup &group, moveit::planning_interface::MoveGroup &gripper_group);
-        bool my_place(moveit::planning_interface::MoveGroup &group, moveit::planning_interface::MoveGroup &gripper_group);
+        bool my_pick();
+        bool my_place();
         void getInvK(geometry_msgs::Pose &eef_pose, std::vector<double> &joint_value);
 
     };
