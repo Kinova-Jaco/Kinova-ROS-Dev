@@ -69,6 +69,8 @@ namespace kinova
 
         // check some process if success.
         bool result_;
+        // wait for user input to continue: cin >> pause_;
+        std::string pause_;
 
         // update current state and pose
         boost::mutex mutex_state_;
@@ -78,17 +80,23 @@ namespace kinova
 
 
         // define pick_place joint value and pose
+        std::vector<double> start_joint_;
         std::vector<double> grasp_joint_;
         std::vector<double> pregrasp_joint_;
         std::vector<double> postgrasp_joint_;
 
+        geometry_msgs::PoseStamped start_pose_;
         geometry_msgs::PoseStamped grasp_pose_;
         geometry_msgs::PoseStamped pregrasp_pose_;
         geometry_msgs::PoseStamped postgrasp_pose_;
 
 
         void build_workscene();
-        void define_grasp_pose();
+        void add_obstacle();
+        void clear_obstacle();
+
+        void define_joint_values();
+        void define_cartesian_pose();
         geometry_msgs::PoseStamped generate_gripper_align_pose(geometry_msgs::PoseStamped targetpose_msg, double dist, double azimuth, double polar, double rot_gripper_z);
         void setup_constrain(geometry_msgs::Pose target_pose);
 
@@ -100,6 +108,7 @@ namespace kinova
         // TODO: use Kinova inverse kinematic solution instead of from ROS.
         void getInvK(geometry_msgs::Pose &eef_pose, std::vector<double> &joint_value);
         void check_collision();
+        void evaluate_plan();
 
     };
 }

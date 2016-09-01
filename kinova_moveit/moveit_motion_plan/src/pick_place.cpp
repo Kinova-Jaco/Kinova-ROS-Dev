@@ -68,27 +68,26 @@ PickPlace::PickPlace(ros::NodeHandle &nh):
         joint_names_[i] = "j2n6s300_joint_" + boost::lexical_cast<std::string>(i+1);
     }
 
+    // set pre-defined joint and pose values.
+    define_cartesian_pose();
+    define_joint_values();
 
     // send robot to home position
     group_->setNamedTarget("Home");
-//    group_->move();
-    ros::WallDuration(1.0).sleep();
+    group_->move();
     ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": ");
     ROS_DEBUG_STREAM("send robot to home position");
 
-//    ROS_INFO("group_ home joint reached:");
-//    group_->getCurrentState()->printStatePositions();
-//    ROS_INFO_STREAM("group_ home pose reached: " << group_->getCurrentPose().pose);
 
     // add collision objects
     build_workscene();
+    clear_obstacle();
 
     ros::WallDuration(1.0).sleep();
 
     // pick process
     result_ = false;
-    result_ = my_pick();
-
+    my_pick();
 }
 
 
@@ -113,18 +112,15 @@ void PickPlace::get_current_pose(const geometry_msgs::PoseStampedConstPtr &msg)
 
 void PickPlace::build_workscene()
 {
-    std::string pause;
     co_.header.frame_id = "root";
     co_.header.stamp = ros::Time::now();
-
-
 
     // remove table
     co_.id = "table";
     co_.operation = moveit_msgs::CollisionObject::REMOVE;
     pub_co_.publish(co_);
     //      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove table ");
-    //      std::cin >> pause;
+    //      std::cin >> pause_;
 
     // add table
     co_.primitives.resize(1);
@@ -137,7 +133,7 @@ void PickPlace::build_workscene()
     co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 1.6;
     co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.03;
     co_.primitive_poses[0].position.x = 1.6/2.0 - 0.1;
-    co_.primitive_poses[0].position.y = 0.8/2.0 - 0.1;
+    co_.primitive_poses[0].position.y = 0.0;
     co_.primitive_poses[0].position.z = -0.03/2.0;
     pub_co_.publish(co_);
     planning_scene_msg_.world.collision_objects.push_back(co_);
@@ -145,7 +141,7 @@ void PickPlace::build_workscene()
     pub_planning_scene_diff_.publish(planning_scene_msg_);
     ros::WallDuration(0.1).sleep();
 //          ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": ADD table ");
-//          std::cin >> pause;
+//          std::cin >> pause_;
 
 
 
@@ -153,20 +149,12 @@ void PickPlace::build_workscene()
     co_.operation = moveit_msgs::CollisionObject::REMOVE;
     pub_co_.publish(co_);
     //      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove part in co_ ");
-    //      std::cin >> pause;
+    //      std::cin >> pause_;
 
     aco_.object = co_;
-//    aco_.link_name = "j2n6s300_end_effector";
-//    const robot_model::JointModelGroup* gripper_group = robot_model_->getJointModelGroup("gripper");
-//    const std::vector<std::string>& touch_links = gripper_group->getLinkModelNames();
-//    for (int i = 0; i<touch_links.size(); i++)
-//    {
-//        aco_.touch_links.push_back(touch_links[i]);
-//    }
-//    aco_.touch_links.push_back("j2n6s300_joint_6");
     pub_aco_.publish(aco_);
     //      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove part in aco_ ");
-    //      std::cin >> pause;
+    //      std::cin >> pause_;
 
     co_.primitives.resize(1);
     co_.primitive_poses.resize(1);
@@ -191,16 +179,27 @@ void PickPlace::build_workscene()
     pub_planning_scene_diff_.publish(planning_scene_msg_);
     ros::WallDuration(0.1).sleep();
 //          ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": add part in co_ ");
-//          std::cin >> pause;
+//          std::cin >> pause_;
 
-    /*
-    // remove pole
+}
+
+void PickPlace::clear_obstacle()
+{
     co_.id = "pole";
     co_.operation = moveit_msgs::CollisionObject::REMOVE;
     pub_co_.publish(co_);
+    planning_scene_msg_.world.collision_objects.push_back(co_);
+    planning_scene_msg_.is_diff = true;
+    pub_planning_scene_diff_.publish(planning_scene_msg_);
+    ros::WallDuration(0.1).sleep();
     //      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove pole ");
-    //      std::cin >> pause;
+    //      std::cin >> pause_;
+}
 
+void PickPlace::add_obstacle()
+{
+    // remove pole
+    clear_obstacle();
 
     // add obstacle between robot and object
     co_.primitives.resize(1);
@@ -209,14 +208,13 @@ void PickPlace::build_workscene()
     co_.primitives[0].dimensions.resize(geometric_shapes::SolidPrimitiveDimCount<shape_msgs::SolidPrimitive::BOX>::value);
     co_.operation = moveit_msgs::CollisionObject::ADD;
 
-    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.15;
-    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.15;
-    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.2;
-//    co_.primitive_poses[0].position.x = coca_pos_x/2.0;
-//    co_.primitive_poses[0].position.y = coca_pos_y/2.0;
-    co_.primitive_poses[0].position.x = coca_pos_x;
-        co_.primitive_poses[0].position.y = 0.1;
-    co_.primitive_poses[0].position.z = coca_h*1.5/2.0;
+    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.3;
+    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.1;
+    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.4;
+
+    co_.primitive_poses[0].position.x = 0.5;
+    co_.primitive_poses[0].position.y = -0.1;
+    co_.primitive_poses[0].position.z = 0.4/2.0;
     co_.primitive_poses[0].orientation.w = 1.0;
     pub_co_.publish(co_);
     planning_scene_msg_.world.collision_objects.push_back(co_);
@@ -224,11 +222,9 @@ void PickPlace::build_workscene()
     pub_planning_scene_diff_.publish(planning_scene_msg_);
     ros::WallDuration(0.1).sleep();
     //      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": ADD pole ");
-    //      std::cin >> pause;
-
-    */
-
+    //      std::cin >> pause_;
 }
+
 
 void PickPlace::check_collision()
 {
@@ -283,8 +279,26 @@ void PickPlace::check_collision()
                     << " collision");
 }
 
-void PickPlace::define_grasp_pose()
+
+void PickPlace::define_cartesian_pose()
 {
+    tf::Quaternion q;
+
+    // define start pose before grasp
+    start_pose_.header.frame_id = "root";
+    start_pose_.header.stamp = ros::Time::now();
+    start_pose_.pose.position.x = 0.5;
+    start_pose_.pose.position.y = -0.5;
+    start_pose_.pose.position.z = 0.1;
+
+    q = EulerZYZ_to_Quaternion(-M_PI/4, M_PI/2, M_PI/2);
+    start_pose_.pose.orientation.x = q.x();
+    start_pose_.pose.orientation.y = q.y();
+    start_pose_.pose.orientation.z = q.z();
+    start_pose_.pose.orientation.w = q.w();
+
+
+    // define grasp pose
     grasp_pose_.header.frame_id = "root";
     grasp_pose_.header.stamp  = ros::Time::now();
 
@@ -293,63 +307,50 @@ void PickPlace::define_grasp_pose()
     grasp_pose_.pose.position.y = 0.5;
     grasp_pose_.pose.position.z = 0.1;
 
-    tf::Quaternion q = EulerZYZ_to_Quaternion(M_PI/4, M_PI/2, M_PI/2);
+    q = EulerZYZ_to_Quaternion(M_PI/4, M_PI/2, M_PI/2);
     grasp_pose_.pose.orientation.x = q.x();
     grasp_pose_.pose.orientation.y = q.y();
     grasp_pose_.pose.orientation.z = q.z();
     grasp_pose_.pose.orientation.w = q.w();
 
-//    robot_state::RobotState start_state(*group.getCurrentState());
-//    robot_state::RobotState& robot_state = planning_scene->getCurrentStateNonConst();
-    robot_state::RobotState& grasp_state = planning_scene_->getCurrentStateNonConst();
-    const robot_state::JointModelGroup *joint_model_group =
-                    grasp_state.getJointModelGroup(group_->getName());
-    grasp_state.setFromIK(joint_model_group, grasp_pose_.pose);
-//    group.setStartState(start_state);
 
-//    ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << "grasp_state.printStatePositions();" );
-//    grasp_state.printStatePositions();
+    // generate_pregrasp_pose(double dist, double azimuth, double polar, double rot_gripper_z)
+    pregrasp_pose_ = generate_gripper_align_pose(grasp_pose_, 0.1, M_PI/4, M_PI/2, M_PI/2);
+    postgrasp_pose_ = pregrasp_pose_;
 
-//    group_->setPoseTarget(grasp_pose_);
-    group_->setJointValueTarget(grasp_pose_.pose);
-    ros::WallDuration(0.1).sleep();
-    grasp_state = group_->getJointValueTarget();
-    ros::WallDuration(0.1).sleep();
-//    ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << "grasp_state.printStatePositions();" );
-//    grasp_state.printStatePositions();
+}
 
-    // Now we will plan to the earlier pose target from the new
-    // start state that we have just created.
-//    group.setPoseTarget(target_pose1);
-//    success = group.plan(my_plan);
+void PickPlace::define_joint_values()
+{
+    start_joint_.resize(joint_names_.size());
+    //    getInvK(start_pose_, start_joint_);
+    start_joint_[0] = 234.4 *M_PI/180.0;
+    start_joint_[1] = 256.0 *M_PI/180.0;
+    start_joint_[2] = 91.4 *M_PI/180.0;
+    start_joint_[3] = 163.4 *M_PI/180.0;
+    start_joint_[4] = 88.5 *M_PI/180.0;
+    start_joint_[5] = 151.0 *M_PI/180.0;
 
-        grasp_joint_.resize(joint_names_.size());
+
+    grasp_joint_.resize(joint_names_.size());
     //    getInvK(grasp_pose, grasp_joint_);
-        grasp_joint_[0] = 155.4 *M_PI/180.0;
-        grasp_joint_[1] = 256.5 *M_PI/180.0;
-        grasp_joint_[2] = 127.8 *M_PI/180.0;
-        grasp_joint_[3] = 240.8 *M_PI/180.0;
-        grasp_joint_[4] = 82.7 *M_PI/180.0;
-        grasp_joint_[5] = 97.9 *M_PI/180.0;
+    grasp_joint_[0] = 144.0 *M_PI/180.0;
+    grasp_joint_[1] = 256.5 *M_PI/180.0;
+    grasp_joint_[2] = 91.3 *M_PI/180.0;
+    grasp_joint_[3] = 163.8 *M_PI/180.0;
+    grasp_joint_[4] = 88.5 *M_PI/180.0;
+    grasp_joint_[5] = 151.3 *M_PI/180.0;
 
-//        pregrasp_joint_.resize(joint_names_.size());
-//    //    getInvK(pregrasp_pose, pregrasp_joint_);
-//        pregrasp_joint_[0] = 145.4 *M_PI/180.0;
-//        pregrasp_joint_[1] = 253.7 *M_PI/180.0;
-//        pregrasp_joint_[2] = 67.0 *M_PI/180.0;
-//        pregrasp_joint_[3] = 151.0 *M_PI/180.0;
-//        pregrasp_joint_[4] = 118.5 *M_PI/180.0;
-//        pregrasp_joint_[5] = 141.7 *M_PI/180.0;
+    pregrasp_joint_.resize(joint_names_.size());
+    //    getInvK(pregrasp_pose, pregrasp_joint_);
+    pregrasp_joint_[0] = 145.4 *M_PI/180.0;
+    pregrasp_joint_[1] = 253.7 *M_PI/180.0;
+    pregrasp_joint_[2] = 67.0 *M_PI/180.0;
+    pregrasp_joint_[3] = 151.0 *M_PI/180.0;
+    pregrasp_joint_[4] = 118.5 *M_PI/180.0;
+    pregrasp_joint_[5] = 141.7 *M_PI/180.0;
 
-
-        pregrasp_joint_.resize(joint_names_.size());
-        pregrasp_joint_[0] = 229.4 *M_PI/180.0;
-        pregrasp_joint_[1] = 255.0 *M_PI/180.0;
-        pregrasp_joint_[2] = 105.4 *M_PI/180.0;
-        pregrasp_joint_[3] = 237.0 *M_PI/180.0;
-        pregrasp_joint_[4] = 112.5 *M_PI/180.0;
-        pregrasp_joint_[5] = 112.2 *M_PI/180.0;
-
+    postgrasp_joint_ = pregrasp_joint_;
 }
 
 
@@ -389,6 +390,7 @@ geometry_msgs::PoseStamped PickPlace::generate_gripper_align_pose(geometry_msgs:
     return pose_msg;
 
 }
+
 
 void PickPlace::setup_constrain(geometry_msgs::Pose target_pose)
 {
@@ -458,10 +460,101 @@ void PickPlace::setup_constrain(geometry_msgs::Pose target_pose)
 //    ros::WallDuration(0.1).sleep();
 }
 
+void PickPlace::evaluate_plan()
+{
+    bool replan = true;
+    int count = 0;
+
+    moveit::planning_interface::MoveGroup::Plan my_plan;
+
+    while (replan == true && ros::ok())
+    {
+        // reset flag for replan
+        count = 0;
+        result_ = false;
+
+        // try to find a success plan.
+        while (result_ == false && count < 20)
+        {
+            count++;
+            result_ = group_->plan(my_plan);
+            std::cout << "at attemp: " << count << std::endl;
+            ros::WallDuration(0.1).sleep();
+        }
+
+        // found a plan
+        if (result_ == true)
+        {
+            std::cout << "plan success at attemp: " << count << std::endl;
+
+            std::cout << "please input y to accept the plan, or others to use replan: ";
+            std::cin >> pause_;
+            if (pause_ == "y" || pause_ == "Y" )
+            {
+                replan = false;
+            }
+            else
+            {
+                replan = true;
+            }
+        }
+        else // not found
+        {
+            std::cout << "Exit since plan failed until reach maximum attemp: " << count << std::endl;
+            replan = false;
+            break;
+        }
+    }
+
+    if(result_ == true)
+    {
+        std::cout << "please input y to execute the previous plan, else plan is cancelled with no action.";
+        std::cin >> pause_;
+        if (pause_ == "y" || pause_ == "Y")
+        {
+            group_->execute(my_plan);
+        }
+    }
+}
 
 bool PickPlace::my_pick()
 {
+    // joint space without obstacle
+    ROS_INFO_STREAM("Press any key to start motion plan in joint space without obstacle ...");
+    std::cin >> pause_;
+    group_->setJointValueTarget(start_joint_);
+    group_->move();
 
+    ROS_INFO_STREAM("Press any key to start path plan ...");
+    std::cin >> pause_;
+    group_->setJointValueTarget(pregrasp_joint_);
+    evaluate_plan();
+
+    ROS_INFO_STREAM("Press any key to come back to start position ...");
+    std::cin >> pause_;
+    group_->setJointValueTarget(start_joint_);
+    evaluate_plan();
+
+
+    // joint space with obstacle
+    ROS_INFO_STREAM("Press any key to start motion plan in joint space with obstacle ...");
+    std::cin >> pause_;
+    add_obstacle();
+    group_->setJointValueTarget(start_joint_);
+    group_->move();
+
+    ROS_INFO_STREAM("Press any key to start path plan ...");
+    std::cin >> pause_;
+    group_->setJointValueTarget(pregrasp_joint_);
+    evaluate_plan();
+
+    ROS_INFO_STREAM("Press any key to come back to start position ...");
+    std::cin >> pause_;
+    group_->setJointValueTarget(start_joint_);
+    evaluate_plan();
+
+
+    return true;
 
     { // scope for mutex update
         boost::mutex::scoped_lock lock_state(mutex_state_);
@@ -473,24 +566,15 @@ bool PickPlace::my_pick()
     }
 
 
-    define_grasp_pose();
-
     ros::WallDuration(0.1).sleep();
 
-    // generate_pregrasp_pose(double dist, double azimuth, double polar, double rot_gripper_z)
-//    pregrasp_pose_ = generate_gripper_align_pose(grasp_pose_, 0.1, M_PI/4, M_PI/2, M_PI/2);
-//    postgrasp_pose_ = pregrasp_pose_;
 
 
 //    group_->setPoseTarget(grasp_pose_);
 //    setup_constrain(pregrasp_pose_.pose);
 
     ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " );
-    for (int i = 0; i< 6; i++)
-    {
-        ROS_DEBUG_STREAM("joint " << i+1 << " is: " << pregrasp_joint_[i] *180/M_PI << ", " );
-    }
-    group_->setJointValueTarget(pregrasp_joint_);
+    group_->setJointValueTarget(start_joint_);
     ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << "give anything to move to pregrasp " );
     std::string test1;
     std::cin >> test1;
@@ -498,6 +582,7 @@ bool PickPlace::my_pick()
     moveit::planning_interface::MoveGroup::Plan my_plan;
     group_->plan(my_plan);
     group_->execute(my_plan);
+
 
     std::string test2;
     std::cin >> test2;
