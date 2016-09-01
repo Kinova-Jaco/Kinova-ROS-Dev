@@ -77,7 +77,11 @@ namespace kinova
         geometry_msgs::PoseStamped current_pose_;
 
 
-        // define pick_place pose
+        // define pick_place joint value and pose
+        std::vector<double> grasp_joint_;
+        std::vector<double> pregrasp_joint_;
+        std::vector<double> postgrasp_joint_;
+
         geometry_msgs::PoseStamped grasp_pose_;
         geometry_msgs::PoseStamped pregrasp_pose_;
         geometry_msgs::PoseStamped postgrasp_pose_;
