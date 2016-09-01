@@ -133,8 +133,8 @@ void PickPlace::build_workscene()
     co_.primitives[0].dimensions.resize(geometric_shapes::SolidPrimitiveDimCount<shape_msgs::SolidPrimitive::BOX>::value);
     co_.operation = moveit_msgs::CollisionObject::ADD;
 
-    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 1.6;
-    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.8;
+    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.8;
+    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 1.6;
     co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.03;
     co_.primitive_poses[0].position.x = 1.6/2.0 - 0.1;
     co_.primitive_poses[0].position.y = 0.8/2.0 - 0.1;
@@ -175,7 +175,7 @@ void PickPlace::build_workscene()
     co_.operation = moveit_msgs::CollisionObject::ADD;
 
     double coca_h = 0.13;
-    double coca_r = 0.036;
+    double coca_r = 0.01;
     double coca_pos_x = 0.5;
     double coca_pos_y = 0.5;
     double coca_pos_z = coca_h/2.0;
@@ -193,6 +193,7 @@ void PickPlace::build_workscene()
 //          ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": add part in co_ ");
 //          std::cin >> pause;
 
+    /*
     // remove pole
     co_.id = "pole";
     co_.operation = moveit_msgs::CollisionObject::REMOVE;
@@ -208,9 +209,9 @@ void PickPlace::build_workscene()
     co_.primitives[0].dimensions.resize(geometric_shapes::SolidPrimitiveDimCount<shape_msgs::SolidPrimitive::BOX>::value);
     co_.operation = moveit_msgs::CollisionObject::ADD;
 
-    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = coca_r *1.5;
-    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = coca_r *1.5;
-    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = coca_h *1.5;
+    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.15;
+    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 0.15;
+    co_.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.2;
 //    co_.primitive_poses[0].position.x = coca_pos_x/2.0;
 //    co_.primitive_poses[0].position.y = coca_pos_y/2.0;
     co_.primitive_poses[0].position.x = coca_pos_x;
@@ -225,6 +226,7 @@ void PickPlace::build_workscene()
     //      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": ADD pole ");
     //      std::cin >> pause;
 
+    */
 
 }
 
@@ -493,14 +495,15 @@ bool PickPlace::my_pick()
     std::string test1;
     std::cin >> test1;
 
-    group_->move();
+    moveit::planning_interface::MoveGroup::Plan my_plan;
+    group_->plan(my_plan);
+    group_->execute(my_plan);
 
     std::string test2;
     std::cin >> test2;
 
     group_->setJointValueTarget(grasp_joint_);
 
-    moveit::planning_interface::MoveGroup::Plan my_plan;
 
     bool replan = true;
     while (replan == true && ros::ok())
