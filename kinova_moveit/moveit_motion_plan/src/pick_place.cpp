@@ -148,7 +148,7 @@ void PickPlace::build_workscene()
 //          std::cin >> pause;
 
 
-/*
+
     co_.id = "coca_can";
     co_.operation = moveit_msgs::CollisionObject::REMOVE;
     pub_co_.publish(co_);
@@ -156,6 +156,14 @@ void PickPlace::build_workscene()
     //      std::cin >> pause;
 
     aco_.object = co_;
+//    aco_.link_name = "j2n6s300_end_effector";
+//    const robot_model::JointModelGroup* gripper_group = robot_model_->getJointModelGroup("gripper");
+//    const std::vector<std::string>& touch_links = gripper_group->getLinkModelNames();
+//    for (int i = 0; i<touch_links.size(); i++)
+//    {
+//        aco_.touch_links.push_back(touch_links[i]);
+//    }
+//    aco_.touch_links.push_back("j2n6s300_joint_6");
     pub_aco_.publish(aco_);
     //      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove part in aco_ ");
     //      std::cin >> pause;
@@ -182,21 +190,8 @@ void PickPlace::build_workscene()
     planning_scene_msg_.is_diff = true;
     pub_planning_scene_diff_.publish(planning_scene_msg_);
     ros::WallDuration(0.1).sleep();
-
 //          ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": add part in co_ ");
 //          std::cin >> pause;
-
-*/
-
-
-
-    double coca_h = 0.13;
-    double coca_r = 0.036;
-    double coca_pos_x = 0.5;
-    double coca_pos_y = 0.5;
-    double coca_pos_z = coca_h/2.0;
-
-
 
     // remove pole
     co_.id = "pole";
@@ -233,8 +228,58 @@ void PickPlace::build_workscene()
 
 }
 
+void PickPlace::check_collision()
+{
+    collision_detection::CollisionRequest collision_request;
+    collision_detection::CollisionResult collision_result;
+    collision_request.contacts = true;
+    collision_request.max_contacts = 1000;
 
+    collision_result.clear();
+    planning_scene_->checkCollision(collision_request, collision_result);
+    ROS_INFO_STREAM("Test 1: Current state is "
+                    << (collision_result.collision ? "in" : "not in")
+                    << " collision");
 
+    collision_request.group_name = "arm";
+    collision_result.clear();
+    planning_scene_->checkCollision(collision_request, collision_result);
+    ROS_INFO_STREAM("Test 3: Current state is "
+                    << (collision_result.collision ? "in" : "not in")
+                    << " collision");
+
+    // check contact
+    planning_scene_->checkCollision(collision_request, collision_result);
+    ROS_INFO_STREAM("Test 4: Current state is "
+                    << (collision_result.collision ? "in" : "not in")
+                    << " collision");
+    collision_detection::CollisionResult::ContactMap::const_iterator it;
+    for(it = collision_result.contacts.begin();
+        it != collision_result.contacts.end();
+        ++it)
+    {
+        ROS_INFO("Contact between: %s and %s",
+                 it->first.first.c_str(),
+                 it->first.second.c_str());
+    }
+
+    // allowed collision matrix
+    collision_detection::AllowedCollisionMatrix acm = planning_scene_->getAllowedCollisionMatrix();
+    robot_state::RobotState copied_state = planning_scene_->getCurrentState();
+
+    collision_detection::CollisionResult::ContactMap::const_iterator it2;
+    for(it2 = collision_result.contacts.begin();
+        it2 != collision_result.contacts.end();
+        ++it2)
+    {
+        acm.setEntry(it2->first.first, it2->first.second, true);
+    }
+    collision_result.clear();
+    planning_scene_->checkCollision(collision_request, collision_result, copied_state, acm);
+    ROS_INFO_STREAM("Test 5: Current state is "
+                    << (collision_result.collision ? "in" : "not in")
+                    << " collision");
+}
 
 void PickPlace::define_grasp_pose()
 {
@@ -461,6 +506,7 @@ bool PickPlace::my_pick()
     while (replan == true && ros::ok())
     {
         result_ = group_->plan(my_plan);
+        check_collision();
         std::cout << "plan is sccess? " << (result_? "yes" : "no") << std::endl;
         std::cout << "please input 1 to replan, or 0 to execute the plan: ";
         std::cin >> replan;

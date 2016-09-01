@@ -99,6 +99,7 @@ namespace kinova
         void get_current_pose(const geometry_msgs::PoseStampedConstPtr &msg);
         // TODO: use Kinova inverse kinematic solution instead of from ROS.
         void getInvK(geometry_msgs::Pose &eef_pose, std::vector<double> &joint_value);
+        void check_collision();
 
     };
 }
