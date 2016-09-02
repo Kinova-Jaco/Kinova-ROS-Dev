@@ -2,6 +2,9 @@
 #include <ros/console.h>
 
 #include <tf_conversions/tf_eigen.h>
+#include <boost/thread.hpp>
+
+const double FINGER_MAX = 6400;
 
 using namespace kinova;
 
@@ -25,14 +28,18 @@ tf::Quaternion EulerZYZ_to_Quaternion(double tz1, double ty, double tz2)
     return q;
 }
 
+void spinThread()
+{
+    ros::spin();
+}
 
 PickPlace::PickPlace(ros::NodeHandle &nh):
     nh_(nh)
 {
-    if(ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug))
-    {
-        ros::console::notifyLoggerLevelsChanged();
-    }
+//    if(ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug))
+//    {
+//        ros::console::notifyLoggerLevelsChanged();
+//    }
 
     ros::NodeHandle pn("~");
 
@@ -75,8 +82,8 @@ PickPlace::PickPlace(ros::NodeHandle &nh):
     // send robot to home position
     group_->setNamedTarget("Home");
     group_->move();
-    ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": ");
-    ROS_DEBUG_STREAM("send robot to home position");
+    ROS_INFO_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": ");
+    ROS_INFO_STREAM("send robot to home position");
 
 
     // add collision objects
@@ -84,6 +91,11 @@ PickPlace::PickPlace(ros::NodeHandle &nh):
     clear_obstacle();
 
     ros::WallDuration(1.0).sleep();
+
+    finger_client_ = new actionlib::SimpleActionClient<kinova_msgs::SetFingersPositionAction>("/j2n6s300_driver/fingers_action/finger_positions", false);
+    while(!finger_client_->waitForServer(ros::Duration(5.0))){
+      ROS_INFO("Waiting for the finger action server to come up");
+    }
 
     // pick process
     result_ = false;
@@ -94,6 +106,7 @@ PickPlace::PickPlace(ros::NodeHandle &nh):
 PickPlace::~PickPlace()
 {
     //
+//    spin_thread.join();
 }
 
 
@@ -107,6 +120,41 @@ void PickPlace::get_current_pose(const geometry_msgs::PoseStampedConstPtr &msg)
 {
     boost::mutex::scoped_lock lock(mutex_pose_);
     current_pose_ = *msg;
+}
+
+/**
+ * @brief PickPlace::gripper_action
+ * @param gripper_rad close for 1.4 and open for 0.0
+ * @return true is gripper motion reaches the goal
+ */
+bool PickPlace::gripper_action(double finger_turn)
+{
+    if (finger_turn < 0)
+    {
+        finger_turn = 0.0;
+    }
+    else
+    {
+        finger_turn = std::min(finger_turn, FINGER_MAX);
+    }
+
+    kinova_msgs::SetFingersPositionGoal goal;
+    goal.fingers.finger1 = finger_turn;
+    goal.fingers.finger2 = goal.fingers.finger1;
+    goal.fingers.finger3 = goal.fingers.finger1;
+    finger_client_->sendGoal(goal);
+
+    if (finger_client_->waitForResult(ros::Duration(5.0)))
+    {
+        finger_client_->getResult();
+        return true;
+    }
+    else
+    {
+        finger_client_->cancelAllGoals();
+        ROS_WARN_STREAM("The gripper action timed-out");
+        return false;
+    }
 }
 
 
@@ -522,19 +570,23 @@ bool PickPlace::my_pick()
     // joint space without obstacle
     ROS_INFO_STREAM("Press any key to start motion plan in joint space without obstacle ...");
     std::cin >> pause_;
-    group_->setJointValueTarget(start_joint_);
-    group_->move();
+//    group_->setJointValueTarget(start_joint_);
+//    group_->move();
+    gripper_action(0.0);
 
     ROS_INFO_STREAM("Press any key to start path plan ...");
     std::cin >> pause_;
-    group_->setJointValueTarget(pregrasp_joint_);
-    evaluate_plan();
+//    group_->setJointValueTarget(pregrasp_joint_);
+//    evaluate_plan();
+    gripper_action(FINGER_MAX);
 
     ROS_INFO_STREAM("Press any key to come back to start position ...");
     std::cin >> pause_;
-    group_->setJointValueTarget(start_joint_);
-    evaluate_plan();
+//    group_->setJointValueTarget(start_joint_);
+//    evaluate_plan();
+    gripper_action(FINGER_MAX/2.0);
 
+    return true;
 
     // joint space with obstacle
     ROS_INFO_STREAM("Press any key to start motion plan in joint space with obstacle ...");

@@ -4,6 +4,9 @@
 #include <ros/ros.h>
 #include <kinova_driver/kinova_ros_types.h>
 
+#include <actionlib/client/simple_action_client.h>
+#include <kinova_msgs/SetFingersPositionAction.h>
+
 // MoveIt!
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/robot_state/robot_state.h>
@@ -39,6 +42,10 @@ namespace kinova
 
     private:
         ros::NodeHandle nh_;
+
+        // open&close fingers: gripper_group_.plan not alway have a solution
+        actionlib::SimpleActionClient<kinova_msgs::SetFingersPositionAction>* finger_client_;
+        kinova_msgs::SetFingersPositionGoal finger_goal_;
 
         moveit::planning_interface::MoveGroup* group_;
         moveit::planning_interface::MoveGroup* gripper_group_;
@@ -109,7 +116,7 @@ namespace kinova
         void getInvK(geometry_msgs::Pose &eef_pose, std::vector<double> &joint_value);
         void check_collision();
         void evaluate_plan();
-
+        bool gripper_action(double finger_turn);
     };
 }
 
