@@ -100,6 +100,7 @@ namespace kinova
         void build_workscene();
         void add_obstacle();
         void clear_obstacle();
+        void clear_workscene();
 
         void define_joint_values();
         void define_cartesian_pose();

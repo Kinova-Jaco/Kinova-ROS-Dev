@@ -162,6 +162,30 @@ bool PickPlace::gripper_action(double finger_turn)
 }
 
 
+void PickPlace::clear_workscene()
+{
+    // remove table
+    co_.id = "table";
+    co_.operation = moveit_msgs::CollisionObject::REMOVE;
+    pub_co_.publish(co_);
+    //      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove table ");
+    //      std::cin >> pause_;
+
+    co_.id = "coca_can";
+    co_.operation = moveit_msgs::CollisionObject::REMOVE;
+    pub_co_.publish(co_);
+    //      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove part in co_ ");
+    //      std::cin >> pause_;
+
+    aco_.object = co_;
+    pub_aco_.publish(aco_);
+    //      ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE " << __LINE__ << ": remove part in aco_ ");
+    //      std::cin >> pause_;
+
+    planning_scene_msg_.world.collision_objects.clear();
+    planning_scene_msg_.is_diff = true;
+    pub_planning_scene_diff_.publish(planning_scene_msg_);
+}
 
 
 void PickPlace::build_workscene()
@@ -347,12 +371,12 @@ void PickPlace::define_cartesian_pose()
     start_pose_.pose.position.y = -0.5;
     start_pose_.pose.position.z = 0.1;
 
-    q = EulerZYZ_to_Quaternion(-M_PI/4, M_PI/2, M_PI/2);
+    q = EulerZYZ_to_Quaternion(-M_PI/4, M_PI/2, M_PI);
     start_pose_.pose.orientation.x = q.x();
     start_pose_.pose.orientation.y = q.y();
     start_pose_.pose.orientation.z = q.z();
     start_pose_.pose.orientation.w = q.w();
-
+    ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << std::endl << "start_pose_ q = EulerZYZ_to_Quaternion(-M_PI/4, M_PI/2, M_PI/2), qx: " << q.x() << ", q.y: " << q.y() << ", q.z: " << q.z() << ", q.w: " << q.w());
 
     // define grasp pose
     grasp_pose_.header.frame_id = "root";
@@ -363,16 +387,18 @@ void PickPlace::define_cartesian_pose()
     grasp_pose_.pose.position.y = 0.5;
     grasp_pose_.pose.position.z = 0.1;
 
-    q = EulerZYZ_to_Quaternion(M_PI/4, M_PI/2, M_PI/2);
+    q = EulerZYZ_to_Quaternion(M_PI/4, M_PI/2, M_PI);
     grasp_pose_.pose.orientation.x = q.x();
     grasp_pose_.pose.orientation.y = q.y();
     grasp_pose_.pose.orientation.z = q.z();
     grasp_pose_.pose.orientation.w = q.w();
+    ROS_WARN_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " << std::endl << "grasp_pose_ q = EulerZYZ_to_Quaternion(M_PI/4, M_PI/2, M_PI/2), qx: " << q.x() << ", q.y: " << q.y() << ", q.z: " << q.z() << ", q.w: " << q.w());
 
 
     // generate_pregrasp_pose(double dist, double azimuth, double polar, double rot_gripper_z)
-    pregrasp_pose_ = generate_gripper_align_pose(grasp_pose_, 0.1, M_PI/4, M_PI/2, M_PI/2);
-    postgrasp_pose_ = pregrasp_pose_;
+    pregrasp_pose_ = generate_gripper_align_pose(grasp_pose_, 0.1, M_PI/4, M_PI/2, M_PI);
+    postgrasp_pose_ = grasp_pose_;
+    postgrasp_pose_.pose.position.z = grasp_pose_.pose.position.z + 0.05;
 
 }
 
@@ -539,7 +565,7 @@ void PickPlace::evaluate_plan(moveit::planning_interface::MoveGroup &group)
         result_ = false;
 
         // try to find a success plan.
-        while (result_ == false && count < 20)
+        while (result_ == false && count < 10)
         {
             count++;
             result_ = group.plan(my_plan);
@@ -573,7 +599,7 @@ void PickPlace::evaluate_plan(moveit::planning_interface::MoveGroup &group)
 
     if(result_ == true)
     {
-        std::cout << "please input y to execute the previous plan, else plan is cancelled with no action.";
+        std::cout << "please input y to execute the previous plan, other keys to skip this step.";
         std::cin >> pause_;
         if (pause_ == "y" || pause_ == "Y")
         {
@@ -591,7 +617,10 @@ bool PickPlace::my_pick()
     gripper_group_->setNamedTarget("Open");
     gripper_group_->move();
 
-    // joint space without obstacle
+/*
+    ///////////////////////////////////////////////////////////
+    //// joint space without obstacle
+    ///////////////////////////////////////////////////////////
     ROS_INFO_STREAM("Press any key to start motion plan in joint space without obstacle ...");
     std::cin >> pause_;
     group_->setJointValueTarget(start_joint_);
@@ -622,13 +651,16 @@ bool PickPlace::my_pick()
 
     ROS_INFO_STREAM("Press any key to release ...");
     std::cin >> pause_;
-    gripper_action(0.0); // half close
+    gripper_action(0.0); // full open
 
-    ROS_INFO_STREAM("Press any key to quit ...");
-    std::cin >> pause_;
+
 
     ///////////////////////////////////////////////////////////
-    // joint space with obstacle
+    //// joint space with obstacle
+    ///////////////////////////////////////////////////////////
+    ROS_INFO_STREAM("*************************");
+    ROS_INFO_STREAM("*************************");
+    ROS_INFO_STREAM("*************************");
     ROS_INFO_STREAM("Press any key to start motion plan in joint space with obstacle ...");
     std::cin >> pause_;
     add_obstacle();
@@ -646,6 +678,77 @@ bool PickPlace::my_pick()
     evaluate_plan(*group_);
 
 
+
+    ///////////////////////////////////////////////////////////
+    //// Cartesian space without obstacle
+    ///////////////////////////////////////////////////////////
+    ROS_INFO_STREAM("*************************");
+    ROS_INFO_STREAM("*************************");
+    ROS_INFO_STREAM("*************************");
+    ROS_INFO_STREAM("Press any key to start motion plan in cartesian space without obstacle ...");
+    std::cin >> pause_;
+    clear_workscene();
+    ros::WallDuration(0.1).sleep();
+    group_->setPoseTarget(start_pose_);
+    evaluate_plan(*group_);
+
+    ROS_INFO_STREAM("Press any key to start path plan ...");
+    std::cin >> pause_;
+    group_->setPoseTarget(pregrasp_pose_);
+    evaluate_plan(*group_);
+
+    ROS_INFO_STREAM("Press any key to go graps position ...");
+    std::cin >> pause_;
+    group_->setPoseTarget(grasp_pose_);
+    evaluate_plan(*group_);
+
+    ROS_INFO_STREAM("Press any key to grasp ...");
+    std::cin >> pause_;
+    gripper_action(0.75*FINGER_MAX); // partially close
+
+    ROS_INFO_STREAM("Press any key to go to retract position ...");
+    std::cin >> pause_;
+    group_->setPoseTarget(postgrasp_pose_);
+    evaluate_plan(*group_);
+
+    ROS_INFO_STREAM("Press any key to come back to start position ...");
+    group_->setPoseTarget(start_pose_);
+    evaluate_plan(*group_);
+
+    ROS_INFO_STREAM("Press any key to release ...");
+    std::cin >> pause_;
+    gripper_action(0.0); // full open
+
+*/
+
+    ///////////////////////////////////////////////////////////
+    //// Cartesian space with obstacle
+    ///////////////////////////////////////////////////////////
+    ROS_INFO_STREAM("*************************");
+    ROS_INFO_STREAM("*************************");
+    ROS_INFO_STREAM("*************************");
+    ROS_INFO_STREAM("Press any key to start motion plan in cartesian space with obstacle ...");
+    std::cin >> pause_;
+    clear_workscene();
+    clear_obstacle();
+    ros::WallDuration(0.1).sleep();
+    group_->setPoseTarget(start_pose_);
+    evaluate_plan(*group_);
+
+    ROS_INFO_STREAM("Press any key to start path plan ...");
+    std::cin >> pause_;
+    build_workscene();
+    add_obstacle();
+    ros::WallDuration(0.1).sleep();
+    group_->setPoseTarget(pregrasp_pose_);
+    evaluate_plan(*group_);
+
+    ROS_INFO_STREAM("Press any key to come back to start position ...");
+    std::cin >> pause_;
+    group_->setPoseTarget(start_pose_);
+    evaluate_plan(*group_);
+
+//  If need to double check if reach target position.
 //    replacement of group_->getCurrentJointValues();
 //    { // scope for mutex update
 //        boost::mutex::scoped_lock lock_state(mutex_state_);
@@ -657,49 +760,16 @@ bool PickPlace::my_pick()
 //        geometry_msgs::PoseStamped copy_pose = current_pose_;
 //    }
 
-    ros::WallDuration(0.1).sleep();
 
-
-
-//    group_->setPoseTarget(grasp_pose_);
-//    setup_constrain(pregrasp_pose_.pose);
-
-    std::string test1;
-    std::cin >> test1;
-
-    moveit::planning_interface::MoveGroup::Plan my_plan;
-    group_->plan(my_plan);
-    group_->execute(my_plan);
-
-
-    std::string test2;
-    std::cin >> test2;
-
-    group_->setJointValueTarget(grasp_joint_);
-
-
-    bool replan = true;
-    while (replan == true && ros::ok())
-    {
-        result_ = group_->plan(my_plan);
-        check_collision();
-        std::cout << "plan is sccess? " << (result_? "yes" : "no") << std::endl;
-        std::cout << "please input 1 to replan, or 0 to execute the plan: ";
-        std::cin >> replan;
-    }
-
-    if (result_ == true)
-    {
-        group_->execute(my_plan);
-    }
-
+    ROS_INFO_STREAM("Press any key to quit ...");
+    std::cin >> pause_;
     return true;
 }
 
 
 void PickPlace::getInvK(geometry_msgs::Pose &eef_pose, std::vector<double> &joint_value)
 {
-
+    // TODO: transform cartesian command to joint space, and alway motion plan in joint space.
 }
 
 
