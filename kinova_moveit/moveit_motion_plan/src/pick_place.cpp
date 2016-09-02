@@ -100,7 +100,17 @@ PickPlace::PickPlace(ros::NodeHandle &nh):
 
 PickPlace::~PickPlace()
 {
-    //
+    // shut down pub and subs
+    sub_joint_.shutdown();
+    sub_pose_.shutdown();
+    pub_co_.shutdown();
+    pub_aco_.shutdown();
+    pub_planning_scene_diff_.shutdown();
+
+    // release memory
+    delete group_;
+    delete gripper_group_;
+    delete finger_client_;
 }
 
 
