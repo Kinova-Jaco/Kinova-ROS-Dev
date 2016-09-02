@@ -482,8 +482,16 @@ geometry_msgs::PoseStamped PickPlace::generate_gripper_align_pose(geometry_msgs:
 }
 
 
-void PickPlace::setup_constrain(geometry_msgs::Pose target_pose)
+void PickPlace::setup_constrain(geometry_msgs::Pose target_pose, bool orientation, bool position)
 {
+    if ( (!orientation) && (!position) )
+    {
+        ROS_WARN("Neither orientation nor position constrain applied.");
+        return;
+    }
+
+    moveit_msgs::Constraints grasp_constrains;
+
     // setup constrains
     moveit_msgs::OrientationConstraint ocm;
     ocm.link_name = "j2n6s300_end_effector";
@@ -491,8 +499,12 @@ void PickPlace::setup_constrain(geometry_msgs::Pose target_pose)
     ocm.orientation = target_pose.orientation;
     ocm.absolute_x_axis_tolerance = 0.1;
     ocm.absolute_y_axis_tolerance = 0.1;
-    ocm.absolute_z_axis_tolerance = 0.1;
+    ocm.absolute_z_axis_tolerance = M_PI;
     ocm.weight = 0.5;
+    if (orientation)
+    {
+        grasp_constrains.orientation_constraints.push_back(ocm);
+    }
 
 
     /* Define position constrain box based on current pose and target pose. */
@@ -528,9 +540,11 @@ void PickPlace::setup_constrain(geometry_msgs::Pose target_pose)
     pcm.constraint_region.primitives.push_back(primitive);
     pcm.constraint_region.primitive_poses.push_back(box_pose);
     pcm.weight = 0.5;
+    if(position)
+    {
+        grasp_constrains.position_constraints.push_back(pcm);
+    }
 
-    moveit_msgs::Constraints grasp_constrains;
-    grasp_constrains.orientation_constraints.push_back(ocm);
     group_->setPathConstraints(grasp_constrains);
 
 
@@ -550,6 +564,26 @@ void PickPlace::setup_constrain(geometry_msgs::Pose target_pose)
 //    ros::WallDuration(0.1).sleep();
 }
 
+void PickPlace::check_constrain()
+{
+    moveit_msgs::Constraints grasp_constrains = group_->getPathConstraints();
+    bool has_constrain = false;
+    ROS_INFO("check constrain result: ");
+    if (!grasp_constrains.orientation_constraints.empty())
+    {
+        has_constrain = true;
+        ROS_INFO("Has orientation constrain. ");
+    }
+    if(!grasp_constrains.position_constraints.empty())
+    {
+        has_constrain = true;
+        ROS_INFO("Has position constrain. ");
+    }
+    if(has_constrain == false)
+    {
+        ROS_INFO("No constrain. ");
+    }
+}
 
 void PickPlace::evaluate_plan(moveit::planning_interface::MoveGroup &group)
 {
@@ -578,8 +612,10 @@ void PickPlace::evaluate_plan(moveit::planning_interface::MoveGroup &group)
         {
             std::cout << "plan success at attemp: " << count << std::endl;
 
+            replan = false;
             std::cout << "please input y to accept the plan, or others to use replan: ";
             std::cin >> pause_;
+            ros::WallDuration(0.5).sleep();
             if (pause_ == "y" || pause_ == "Y" )
             {
                 replan = false;
@@ -614,10 +650,12 @@ bool PickPlace::my_pick()
 //    ROS_INFO_STREAM("Press any key to open gripper ...");
 //    std::cin >> pause_;
     ros::WallDuration(1.0).sleep();
+    group_->clearPathConstraints();
     gripper_group_->setNamedTarget("Open");
     gripper_group_->move();
 
-/*
+    /*
+
     ///////////////////////////////////////////////////////////
     //// joint space without obstacle
     ///////////////////////////////////////////////////////////
@@ -677,6 +715,7 @@ bool PickPlace::my_pick()
     group_->setJointValueTarget(start_joint_);
     evaluate_plan(*group_);
 
+*/
 
 
     ///////////////////////////////////////////////////////////
@@ -687,6 +726,7 @@ bool PickPlace::my_pick()
     ROS_INFO_STREAM("*************************");
     ROS_INFO_STREAM("Press any key to start motion plan in cartesian space without obstacle ...");
     std::cin >> pause_;
+    clear_obstacle();
     clear_workscene();
     ros::WallDuration(0.1).sleep();
     group_->setPoseTarget(start_pose_);
@@ -711,7 +751,10 @@ bool PickPlace::my_pick()
     group_->setPoseTarget(postgrasp_pose_);
     evaluate_plan(*group_);
 
-    ROS_INFO_STREAM("Press any key to come back to start position ...");
+    ROS_INFO_STREAM("Press any key to come back to start position  ...");
+    std::cin >> pause_;
+    group_->clearPathConstraints();
+    setup_constrain(start_pose_.pose, true, false);
     group_->setPoseTarget(start_pose_);
     evaluate_plan(*group_);
 
@@ -719,7 +762,6 @@ bool PickPlace::my_pick()
     std::cin >> pause_;
     gripper_action(0.0); // full open
 
-*/
 
     ///////////////////////////////////////////////////////////
     //// Cartesian space with obstacle
@@ -731,11 +773,12 @@ bool PickPlace::my_pick()
     std::cin >> pause_;
     clear_workscene();
     clear_obstacle();
+    group_->clearPathConstraints();
     ros::WallDuration(0.1).sleep();
     group_->setPoseTarget(start_pose_);
     evaluate_plan(*group_);
 
-    ROS_INFO_STREAM("Press any key to start path plan ...");
+    ROS_INFO_STREAM("Press any key to start motion plan ...");
     std::cin >> pause_;
     build_workscene();
     add_obstacle();
@@ -743,8 +786,10 @@ bool PickPlace::my_pick()
     group_->setPoseTarget(pregrasp_pose_);
     evaluate_plan(*group_);
 
-    ROS_INFO_STREAM("Press any key to come back to start position ...");
+    ROS_INFO_STREAM("Press any key to check motion plan with BOTH constrains ...");
     std::cin >> pause_;
+    setup_constrain(start_pose_.pose, true, true);
+    ros::WallDuration(0.1).sleep();
     group_->setPoseTarget(start_pose_);
     evaluate_plan(*group_);
 

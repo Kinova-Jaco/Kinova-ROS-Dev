@@ -105,7 +105,8 @@ namespace kinova
         void define_joint_values();
         void define_cartesian_pose();
         geometry_msgs::PoseStamped generate_gripper_align_pose(geometry_msgs::PoseStamped targetpose_msg, double dist, double azimuth, double polar, double rot_gripper_z);
-        void setup_constrain(geometry_msgs::Pose target_pose);
+        void setup_constrain(geometry_msgs::Pose target_pose, bool orientation, bool position);
+        void check_constrain();
 
         bool my_pick();
         bool my_place();
