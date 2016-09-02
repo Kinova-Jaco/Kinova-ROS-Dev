@@ -2,11 +2,11 @@
 #include <ros/console.h>
 
 #include <tf_conversions/tf_eigen.h>
-#include <boost/thread.hpp>
 
 const double FINGER_MAX = 6400;
 
 using namespace kinova;
+
 
 tf::Quaternion EulerZYZ_to_Quaternion(double tz1, double ty, double tz2)
 {
@@ -28,10 +28,6 @@ tf::Quaternion EulerZYZ_to_Quaternion(double tz1, double ty, double tz2)
     return q;
 }
 
-void spinThread()
-{
-    ros::spin();
-}
 
 PickPlace::PickPlace(ros::NodeHandle &nh):
     nh_(nh)
@@ -42,7 +38,6 @@ PickPlace::PickPlace(ros::NodeHandle &nh):
 //    }
 
     ros::NodeHandle pn("~");
-
     sub_joint_ = nh_.subscribe<sensor_msgs::JointState>("/j2n6s300_driver/out/joint_state", 1, &PickPlace::get_current_state, this);
     sub_pose_ = nh_.subscribe<geometry_msgs::PoseStamped>("/j2n6s300_driver/out/tool_pose", 1, &PickPlace::get_current_pose, this);
 
@@ -62,6 +57,11 @@ PickPlace::PickPlace(ros::NodeHandle &nh):
     gripper_group_ = new moveit::planning_interface::MoveGroup("gripper");
 
     group_->setEndEffectorLink("j2n6s300_end_effector");
+
+    finger_client_ = new actionlib::SimpleActionClient<kinova_msgs::SetFingersPositionAction>("/j2n6s300_driver/fingers_action/finger_positions", false);
+    while(!finger_client_->waitForServer(ros::Duration(5.0))){
+      ROS_INFO("Waiting for the finger action server to come up");
+    }
 
     pub_co_ = nh_.advertise<moveit_msgs::CollisionObject>("/collision_object", 10);
     pub_aco_ = nh_.advertise<moveit_msgs::AttachedCollisionObject>("/attached_collision_object", 10);
@@ -92,11 +92,6 @@ PickPlace::PickPlace(ros::NodeHandle &nh):
 
     ros::WallDuration(1.0).sleep();
 
-    finger_client_ = new actionlib::SimpleActionClient<kinova_msgs::SetFingersPositionAction>("/j2n6s300_driver/fingers_action/finger_positions", false);
-    while(!finger_client_->waitForServer(ros::Duration(5.0))){
-      ROS_INFO("Waiting for the finger action server to come up");
-    }
-
     // pick process
     result_ = false;
     my_pick();
@@ -106,7 +101,6 @@ PickPlace::PickPlace(ros::NodeHandle &nh):
 PickPlace::~PickPlace()
 {
     //
-//    spin_thread.join();
 }
 
 
@@ -124,7 +118,7 @@ void PickPlace::get_current_pose(const geometry_msgs::PoseStampedConstPtr &msg)
 
 /**
  * @brief PickPlace::gripper_action
- * @param gripper_rad close for 1.4 and open for 0.0
+ * @param gripper_rad close for 6400 and open for 0.0
  * @return true is gripper motion reaches the goal
  */
 bool PickPlace::gripper_action(double finger_turn)
@@ -156,6 +150,8 @@ bool PickPlace::gripper_action(double finger_turn)
         return false;
     }
 }
+
+
 
 
 void PickPlace::build_workscene()
@@ -210,8 +206,10 @@ void PickPlace::build_workscene()
     co_.primitives[0].dimensions.resize(geometric_shapes::SolidPrimitiveDimCount<shape_msgs::SolidPrimitive::CYLINDER>::value);
     co_.operation = moveit_msgs::CollisionObject::ADD;
 
-    double coca_h = 0.13;
-    double coca_r = 0.01;
+    double coca_h = 0.001;
+    double coca_r = 0.05;
+//    double coca_h = 0.13;
+//    double coca_r = 0.01;
     double coca_pos_x = 0.5;
     double coca_pos_y = 0.5;
     double coca_pos_z = coca_h/2.0;
@@ -398,7 +396,15 @@ void PickPlace::define_joint_values()
     pregrasp_joint_[4] = 118.5 *M_PI/180.0;
     pregrasp_joint_[5] = 141.7 *M_PI/180.0;
 
-    postgrasp_joint_ = pregrasp_joint_;
+//    postgrasp_joint_ = pregrasp_joint_;
+    postgrasp_joint_.resize(joint_names_.size());
+    //    getInvK(pregrasp_pose, postgrasp_joint_);
+    postgrasp_joint_[0] = 144 *M_PI/180.0;
+    postgrasp_joint_[1] = 249 *M_PI/180.0;
+    postgrasp_joint_[2] = 88 *M_PI/180.0;
+    postgrasp_joint_[3] = 165 *M_PI/180.0;
+    postgrasp_joint_[4] = 83 *M_PI/180.0;
+    postgrasp_joint_[5] = 151 *M_PI/180.0;
 }
 
 
@@ -508,7 +514,8 @@ void PickPlace::setup_constrain(geometry_msgs::Pose target_pose)
 //    ros::WallDuration(0.1).sleep();
 }
 
-void PickPlace::evaluate_plan()
+
+void PickPlace::evaluate_plan(moveit::planning_interface::MoveGroup &group)
 {
     bool replan = true;
     int count = 0;
@@ -525,7 +532,7 @@ void PickPlace::evaluate_plan()
         while (result_ == false && count < 20)
         {
             count++;
-            result_ = group_->plan(my_plan);
+            result_ = group.plan(my_plan);
             std::cout << "at attemp: " << count << std::endl;
             ros::WallDuration(0.1).sleep();
         }
@@ -560,34 +567,57 @@ void PickPlace::evaluate_plan()
         std::cin >> pause_;
         if (pause_ == "y" || pause_ == "Y")
         {
-            group_->execute(my_plan);
+            group.execute(my_plan);
         }
     }
 }
 
+
 bool PickPlace::my_pick()
 {
+//    ROS_INFO_STREAM("Press any key to open gripper ...");
+//    std::cin >> pause_;
+    ros::WallDuration(1.0).sleep();
+    gripper_group_->setNamedTarget("Open");
+    gripper_group_->move();
+
     // joint space without obstacle
     ROS_INFO_STREAM("Press any key to start motion plan in joint space without obstacle ...");
     std::cin >> pause_;
-//    group_->setJointValueTarget(start_joint_);
-//    group_->move();
-    gripper_action(0.0);
+    group_->setJointValueTarget(start_joint_);
+    group_->move();
 
     ROS_INFO_STREAM("Press any key to start path plan ...");
     std::cin >> pause_;
-//    group_->setJointValueTarget(pregrasp_joint_);
-//    evaluate_plan();
-    gripper_action(FINGER_MAX);
+    group_->setJointValueTarget(pregrasp_joint_);
+    evaluate_plan(*group_);
+
+    ROS_INFO_STREAM("Press any key to go graps position ...");
+    std::cin >> pause_;
+    group_->setJointValueTarget(grasp_joint_);
+    group_->move();
+
+    ROS_INFO_STREAM("Press any key to grasp ...");
+    std::cin >> pause_;
+    gripper_action(0.75*FINGER_MAX); // partially close
+
+    ROS_INFO_STREAM("Press any key to go to retract position ...");
+    std::cin >> pause_;
+    group_->setJointValueTarget(postgrasp_joint_);
+    group_->move();
 
     ROS_INFO_STREAM("Press any key to come back to start position ...");
+    group_->setJointValueTarget(start_joint_);
+    evaluate_plan(*group_);
+
+    ROS_INFO_STREAM("Press any key to release ...");
     std::cin >> pause_;
-//    group_->setJointValueTarget(start_joint_);
-//    evaluate_plan();
-    gripper_action(FINGER_MAX/2.0);
+    gripper_action(0.0); // half close
 
-    return true;
+    ROS_INFO_STREAM("Press any key to quit ...");
+    std::cin >> pause_;
 
+    ///////////////////////////////////////////////////////////
     // joint space with obstacle
     ROS_INFO_STREAM("Press any key to start motion plan in joint space with obstacle ...");
     std::cin >> pause_;
@@ -598,25 +628,24 @@ bool PickPlace::my_pick()
     ROS_INFO_STREAM("Press any key to start path plan ...");
     std::cin >> pause_;
     group_->setJointValueTarget(pregrasp_joint_);
-    evaluate_plan();
+    evaluate_plan(*group_);
 
     ROS_INFO_STREAM("Press any key to come back to start position ...");
     std::cin >> pause_;
     group_->setJointValueTarget(start_joint_);
-    evaluate_plan();
+    evaluate_plan(*group_);
 
 
-    return true;
-
-    { // scope for mutex update
-        boost::mutex::scoped_lock lock_state(mutex_state_);
-//        ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " );
-//        for (int i = 0; i< 9; i++)
-//        {
-//            ROS_DEBUG_STREAM(current_state_.name[i] << ": " << current_state_.position[i] << ", " );
-//        }
-    }
-
+//    replacement of group_->getCurrentJointValues();
+//    { // scope for mutex update
+//        boost::mutex::scoped_lock lock_state(mutex_state_);
+//        sensor_msgs::JointState copy_state = current_state_;
+//    }
+//    replacement of group_->getCurrentPose();
+//    { // scope for mutex update
+//        boost::mutex::scoped_lock lock_state(mutex_state_);
+//        geometry_msgs::PoseStamped copy_pose = current_pose_;
+//    }
 
     ros::WallDuration(0.1).sleep();
 
@@ -625,9 +654,6 @@ bool PickPlace::my_pick()
 //    group_->setPoseTarget(grasp_pose_);
 //    setup_constrain(pregrasp_pose_.pose);
 
-    ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << ": " );
-    group_->setJointValueTarget(start_joint_);
-    ROS_DEBUG_STREAM(__PRETTY_FUNCTION__ << ": LINE: " << __LINE__ << "give anything to move to pregrasp " );
     std::string test1;
     std::cin >> test1;
 

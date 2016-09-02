@@ -45,7 +45,6 @@ namespace kinova
 
         // open&close fingers: gripper_group_.plan not alway have a solution
         actionlib::SimpleActionClient<kinova_msgs::SetFingersPositionAction>* finger_client_;
-        kinova_msgs::SetFingersPositionGoal finger_goal_;
 
         moveit::planning_interface::MoveGroup* group_;
         moveit::planning_interface::MoveGroup* gripper_group_;
@@ -115,8 +114,8 @@ namespace kinova
         // TODO: use Kinova inverse kinematic solution instead of from ROS.
         void getInvK(geometry_msgs::Pose &eef_pose, std::vector<double> &joint_value);
         void check_collision();
-        void evaluate_plan();
-        bool gripper_action(double finger_turn);
+        void evaluate_plan(moveit::planning_interface::MoveGroup &group);
+        bool gripper_action(double gripper_rad);
     };
 }
 
