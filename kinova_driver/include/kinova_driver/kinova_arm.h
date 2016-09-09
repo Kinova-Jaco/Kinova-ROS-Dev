@@ -22,6 +22,7 @@
 #include <kinova_msgs/Stop.h>
 #include <kinova_msgs/Start.h>
 #include <kinova_msgs/HomeArm.h>
+#include <kinova_msgs/DebugAPI.h>
 #include <kinova_msgs/JointVelocity.h>
 #include <kinova_msgs/PoseVelocity.h>
 #include <kinova_msgs/FingerPosition.h>
@@ -29,6 +30,7 @@
 #include <kinova_msgs/KinovaPose.h>
 #include <kinova_msgs/SetForceControlParams.h>
 #include <kinova_msgs/SetEndEffectorOffset.h>
+#include <kinova_msgs/DebugMsg.h>
 
 #include <time.h>
 #include <math.h>
@@ -55,6 +57,7 @@ class KinovaArm
     bool stopServiceCallback(kinova_msgs::Stop::Request &req, kinova_msgs::Stop::Response &res);
     bool startServiceCallback(kinova_msgs::Start::Request &req, kinova_msgs::Start::Response &res);
     bool homeArmServiceCallback(kinova_msgs::HomeArm::Request &req, kinova_msgs::HomeArm::Response &res);
+    bool debugAPIServiceCallback(kinova_msgs::DebugAPI::Request &req, kinova_msgs::DebugAPI::Response &res);
     
     bool setForceControlParamsCallback(kinova_msgs::SetForceControlParams::Request &req,
                                        kinova_msgs::SetForceControlParams::Response &res);
@@ -76,6 +79,7 @@ class KinovaArm
     void publishToolPosition(void);
     void publishToolWrench(void);
     void publishFingerPosition(void);
+    void publishDebugMessage(void);
 
     tf::TransformListener tf_listener_;
     ros::NodeHandle node_handle_;
@@ -93,10 +97,12 @@ class KinovaArm
 
     ros::Publisher joint_command_publisher_;
     ros::Publisher cartesian_command_publisher_;
+    ros::Publisher debug_message_publisher_;
 
     ros::ServiceServer stop_service_;
     ros::ServiceServer start_service_;
     ros::ServiceServer homing_service_;
+    ros::ServiceServer debug_service_;
 
     ros::ServiceServer set_force_control_params_service_;
     ros::ServiceServer start_force_control_service_;

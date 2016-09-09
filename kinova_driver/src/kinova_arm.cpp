@@ -120,6 +120,7 @@ KinovaArm::KinovaArm(KinovaComm &arm, const ros::NodeHandle &nodeHandle, const s
     stop_service_ = node_handle_.advertiseService("in/stop", &KinovaArm::stopServiceCallback, this);
     start_service_ = node_handle_.advertiseService("in/start", &KinovaArm::startServiceCallback, this);
     homing_service_ = node_handle_.advertiseService("in/home_arm", &KinovaArm::homeArmServiceCallback, this);
+    debug_service_ = node_handle_.advertiseService("in/debug", &KinovaArm::debugAPIServiceCallback, this);
 
     set_force_control_params_service_ = node_handle_.advertiseService("in/set_force_control_params", &KinovaArm::setForceControlParamsCallback, this);
     start_force_control_service_ = node_handle_.advertiseService("in/start_force_control", &KinovaArm::startForceControlCallback, this);
@@ -139,12 +140,15 @@ KinovaArm::KinovaArm(KinovaComm &arm, const ros::NodeHandle &nodeHandle, const s
     joint_command_publisher_ = node_handle_.advertise<kinova_msgs::JointAngles>("out/joint_command", 2);
     cartesian_command_publisher_ = node_handle_.advertise<kinova_msgs::KinovaPose>("out/cartesian_command", 2);
 
+    debug_message_publisher_ = node_handle_.advertise<kinova_msgs::DebugMsg>("out/debug_message",100);
+
     /* Set up Subscribers*/
     joint_velocity_subscriber_ = node_handle_.subscribe("in/joint_velocity", 1,
                                                       &KinovaArm::jointVelocityCallback, this);
     cartesian_velocity_subscriber_ = node_handle_.subscribe("in/cartesian_velocity", 1,
                                                           &KinovaArm::cartesianVelocityCallback, this);
 
+    // update state too fast (eg: status_interval_seconds_= 0.01), will affect subscribers (slow down joint velocity control: joint_velocity_subscriber_).
     node_handle_.param<double>("status_interval_seconds", status_interval_seconds_, 0.1);
 
     // Depending on the API version, the arm might return velocities in the
@@ -218,6 +222,15 @@ bool KinovaArm::startServiceCallback(kinova_msgs::Start::Request &req, kinova_ms
     ROS_DEBUG("Arm start requested");
     return true;
 }
+
+
+bool KinovaArm::debugAPIServiceCallback(kinova_msgs::DebugAPI::Request &req, kinova_msgs::DebugAPI::Response &res)
+{
+    std::string result = kinova_comm_.debugAPI(req.input);
+    res.output = "Given input: " + req.input + ", result is: " + result;
+    return true;
+}
+
 
 bool KinovaArm::setForceControlParamsCallback(kinova_msgs::SetForceControlParams::Request &req, kinova_msgs::SetForceControlParams::Response &res)
 {
@@ -341,14 +354,14 @@ void KinovaArm::publishJointAngles(void)
 
     if(finger_number_==2)
     {
-        joint_state.position[joint_total_number_-2] = 0;
-        joint_state.position[joint_total_number_-1] = 0;
+        joint_state.position[joint_total_number_-2] = fingers.Finger1 * finger_conv_ratio_;
+        joint_state.position[joint_total_number_-1] = fingers.Finger2 * finger_conv_ratio_;
     }
     else if(finger_number_==3)
     {
-        joint_state.position[joint_total_number_-3] = 0;
-        joint_state.position[joint_total_number_-2] = 0;
-        joint_state.position[joint_total_number_-1] = 0;
+        joint_state.position[joint_total_number_-3] = fingers.Finger1 * finger_conv_ratio_;
+        joint_state.position[joint_total_number_-2] = fingers.Finger2 * finger_conv_ratio_;
+        joint_state.position[joint_total_number_-1] = fingers.Finger3 * finger_conv_ratio_;
     }
 
 
@@ -379,14 +392,14 @@ void KinovaArm::publishJointAngles(void)
         joint_state.velocity[5] = current_vels.Actuator6;
     }
 
-    ROS_DEBUG_THROTTLE(0.1,
-                       "Raw joint velocities: %f %f %f %f %f %f",
-                       current_vels.Actuator1,
-                       current_vels.Actuator2,
-                       current_vels.Actuator3,
-                       current_vels.Actuator4,
-                       current_vels.Actuator5,
-                       current_vels.Actuator6);
+//    ROS_DEBUG_THROTTLE(0.1,
+//                       "Raw joint velocities: %f %f %f %f %f %f",
+//                       current_vels.Actuator1,
+//                       current_vels.Actuator2,
+//                       current_vels.Actuator3,
+//                       current_vels.Actuator4,
+//                       current_vels.Actuator5,
+//                       current_vels.Actuator6);
 
     if (convert_joint_velocities_) {
         convertKinDeg(joint_state.velocity);
@@ -482,6 +495,14 @@ void KinovaArm::publishFingerPosition(void)
     finger_position_publisher_.publish(fingers.constructFingersMsg());
 }
 
+void KinovaArm::publishDebugMessage(void)
+{
+    kinova_msgs::DebugMsg debug_message;
+    std::string result = "";
+    debug_message.Debug_info.append(result);
+    debug_message_publisher_.publish(debug_message);
+
+}
 
 void KinovaArm::statusTimer(const ros::TimerEvent&)
 {
@@ -489,6 +510,7 @@ void KinovaArm::statusTimer(const ros::TimerEvent&)
     publishToolPosition();
     publishToolWrench();
     publishFingerPosition();
+    publishDebugMessage();
 }
 
 }  // namespace kinova

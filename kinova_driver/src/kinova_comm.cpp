@@ -191,6 +191,18 @@ KinovaComm::~KinovaComm()
     kinova_api_.closeAPI();
 }
 
+/**
+ * @brief KinovaComm::debugAPI
+ * provide an interface to debug any function under KinovaComm class from higher level( eg: DebugAPI service from command line ) ;
+ * @param input API function name or augument, etc
+ * @return output string.
+ */
+std::string KinovaComm::debugAPI(std::string &input)
+{
+    // to be filled with specific debug purpose.
+    return "debugAPI return " +input;
+}
+
 
 /**
  * @brief This function tells the robotical arm that from now on, the API will control the robotical arm. It must been call before sending trajectories or joystick command.
@@ -694,11 +706,11 @@ void KinovaComm::setJointTorqueMinMax(AngularInfo &min, AngularInfo &max)
  */
 void KinovaComm::printAngles(const KinovaAngles &angles)
 {
-    ROS_INFO("Joint angles (deg) -- J1: %f, J2: %f J3: %f, J4: %f, J5: %f, J6: %f \n",
+    ROS_INFO("Joint angles (deg) -- J1: %f, J2: %f, J3: %f, J4: %f, J5: %f, J6: %f \n",
              angles.Actuator1, angles.Actuator2, angles.Actuator3,
              angles.Actuator4, angles.Actuator5, angles.Actuator6);
 
-    ROS_INFO("Joint angles (rad) -- J1: %f, J2: %f J3: %f, J4: %f, J5: %f, J6: %f",
+    ROS_INFO("Joint angles (rad) -- J1: %f, J2: %f, J3: %f, J4: %f, J5: %f, J6: %f",
              angles.Actuator1/180.0*M_PI, angles.Actuator2/180.0*M_PI, angles.Actuator3/180.0*M_PI,
              angles.Actuator4/180.0*M_PI, angles.Actuator5/180.0*M_PI, angles.Actuator6/180.0*M_PI);
 }
