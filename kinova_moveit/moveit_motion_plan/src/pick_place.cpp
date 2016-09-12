@@ -654,7 +654,6 @@ bool PickPlace::my_pick()
     gripper_group_->setNamedTarget("Open");
     gripper_group_->move();
 
-    /*
 
     ///////////////////////////////////////////////////////////
     //// joint space without obstacle
@@ -714,8 +713,6 @@ bool PickPlace::my_pick()
     std::cin >> pause_;
     group_->setJointValueTarget(start_joint_);
     evaluate_plan(*group_);
-
-*/
 
 
     ///////////////////////////////////////////////////////////
